@@ -27,12 +27,12 @@
                 </a>
             </li>
             <li>
-                <a href="#">
+                <a href="{{ url_for('orders_index') }}" class="{% if 'orders' in request.endpoint %}active{% endif %}">
                     <i class="fa-solid fa-layer-group"></i> Pedidos
                 </a>
             </li>
             <li>
-                <a href="#">
+                <a href="{{ url_for('customers_index') }}" class="{% if 'customers' in request.endpoint %}active{% endif %}">
                     <i class="fa-solid fa-users"></i> Clientes
                 </a>
             </li>

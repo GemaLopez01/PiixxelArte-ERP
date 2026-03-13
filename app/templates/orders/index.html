@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="dashboard-title">
+        <h1>Pedidos Activos</h1>
+        <p>Gestiona todas las órdenes de trabajo de tus clientes</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('new_order') }}" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Nuevo Pedido
+        </a>
+    </div>
+</div>
+
+<div class="section-card">
+    <div class="table-responsive">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Trabajo</th>
+                    <th>Cliente</th>
+                    <th>Fecha Estimada</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td class="order-id">#{{ "%04d" | format(order.id) }}</td>
+                    <td>
+                        <strong>{{ order.title or 'Sin título' }}</strong>
+                        {% if order.has_design %}
+                            <span style="font-size: 0.7rem; background:#E0E7FF; color:#4F46E5; padding:2px 6px; border-radius:4px; margin-left:4px;">Con Diseño</span>
+                        {% else %}
+                            <span style="font-size: 0.7rem; background:#FEE2E2; color:#DC2626; padding:2px 6px; border-radius:4px; margin-left:4px;">Sin Diseño</span>
+                        {% endif %}
+                    </td>
+                    <td class="customer-name">{{ order.customer.name }}</td>
+                    <td>{{ order.delivery_date.strftime('%d/%m/%Y') if order.delivery_date else 'Sin especificar' }}</td>
+                    <td>${{ "%.2f" | format(order.total_amount) }}</td>
+                    <td><span class="status-badge status-{{ order.status|replace(' ', '') }}">{{ order.status }}</span></td>
+                    <td class="action-buttons" style="display: flex; gap: 6px;">
+                        <a href="{{ url_for('edit_order', order_id=order.id) }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                        <form method="POST" action="{{ url_for('delete_order', order_id=order.id) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="return confirm('¿Eliminar este pedido?');">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 40px;">
+                        No tienes ningún pedido registrado.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

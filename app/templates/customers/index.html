@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="dashboard-title">
+        <h1>Directorio de Clientes</h1>
+        <p>Administra la información de contacto y facturación de tus clientes.</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('new_customer') }}" class="btn btn-primary">
+            <i class="fa-solid fa-user-plus"></i> Nuevo Cliente
+        </a>
+    </div>
+</div>
+
+<div class="section-card">
+    <div class="table-responsive">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Teléfono</th>
+                    <th>Email</th>
+                    <th>¿Factura?</th>
+                    <th>Registrado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in customers %}
+                <tr>
+                    <td class="customer-name">
+                        {{ c.name }}
+                        {% if c.business_name %}
+                        <br><small style="color:var(--text-secondary); font-weight:normal;">{{ c.business_name }}</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ c.phone or 'N/A' }}</td>
+                    <td>{{ c.email or 'N/A' }}</td>
+                    <td>
+                        {% if c.requires_invoice %}
+                            <span class="status-badge" style="background:#E0E7FF; color:#4F46E5;">Sí</span>
+                        {% else %}
+                            <span class="status-badge" style="background:#F3F4F6; color:#6B7280;">No</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ c.created_at.strftime('%d/%m/%Y') }}</td>
+                    <td class="action-buttons" style="display: flex; gap: 6px;">
+                        <a href="{{ url_for('edit_customer', customer_id=c.id) }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                        <form method="POST" action="{{ url_for('delete_customer', customer_id=c.id) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="return confirm('¿Estás seguro de que deseas eliminar a {{ c.name }}? No podrás hacerlo si tiene pedidos asociados.');">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 40px;">
+                        No hay clientes registrados aún.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

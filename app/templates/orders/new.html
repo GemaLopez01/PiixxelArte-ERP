@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="dashboard-title">
+        <h1>Crear Nuevo Pedido</h1>
+        <p>Ingresa los detalles del trabajo a realizar</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('orders_index') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Volver a Pedidos
+        </a>
+    </div>
+</div>
+
+<div class="section-card" style="max-width: 800px; margin: 0 auto; padding: 32px;">
+    <form method="POST" action="{{ url_for('new_order') }}">
+        
+        <!-- Nombre del trabajo -->
+        <div class="form-group mb-4">
+            <label for="title" style="font-weight: 600;">Nombre del Trabajo *</label>
+            <input type="text" class="form-control" style="padding: 12px;" id="title" name="title" required placeholder="Ej. Lona 3x2, Tarjetas de presentación, etc.">
+        </div>
+
+        <!-- Cliente -->
+        <div class="form-group mb-4">
+            <label for="customer_id" style="font-weight: 600;">Cliente *</label>
+            <select class="form-control" style="padding: 12px;" id="customer_id" name="customer_id" required>
+                <option value="" disabled selected>Seleccione un cliente</option>
+                {% for customer in customers %}
+                    <option value="{{ customer.id }}">{{ customer.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+            <!-- Material -->
+            <div class="form-group mb-0">
+                <label for="product_id" style="font-weight: 600;">Material / Servicio *</label>
+                <select class="form-control" style="padding: 12px;" id="product_id" name="product_id" required>
+                    <option value="" disabled selected>Seleccione material</option>
+                    {% for product in products %}
+                        <option value="{{ product.id }}">{{ product.name }} (${{ product.base_price }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Piezas -->
+            <div class="form-group mb-0">
+                <label for="quantity" style="font-weight: 600;">Número de Piezas *</label>
+                <input type="number" class="form-control" style="padding: 12px;" id="quantity" name="quantity" min="1" value="1" required>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+            <!-- Medidas: Ancho -->
+            <div class="form-group mb-0">
+                <label for="width" style="font-weight: 600;">Ancho (cm) <span style="font-weight:400; color:var(--text-secondary);">(Opcional)</span></label>
+                <input type="number" step="0.01" class="form-control" style="padding: 12px;" id="width" name="width" placeholder="Ej. 100">
+            </div>
+
+            <!-- Medidas: Alto -->
+            <div class="form-group mb-0">
+                <label for="height" style="font-weight: 600;">Alto (cm) <span style="font-weight:400; color:var(--text-secondary);">(Opcional)</span></label>
+                <input type="number" step="0.01" class="form-control" style="padding: 12px;" id="height" name="height" placeholder="Ej. 200">
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px; align-items: start;">
+            <!-- Fecha de Entrega -->
+            <div class="form-group mb-0">
+                <label for="delivery_date" style="font-weight: 600;">Fecha de Entrega Estimada *</label>
+                <input type="date" class="form-control" style="padding: 12px;" id="delivery_date" name="delivery_date" required>
+            </div>
+
+            <!-- Diseño Checkbox (Switch Style) -->
+            <div class="form-group mb-0" style="display: flex; flex-direction: column;">
+                <label style="font-weight: 600;">¿El cliente ya tiene diseño?</label>
+                <div style="margin-top: 12px;">
+                    <label class="switch" style="display: inline-flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" name="has_design" id="has_design" style="width: 20px; height: 20px; margin-right: 12px;">
+                        <span style="font-size: 0.95rem; color: var(--text-secondary);">Sí, archivo listo para imprimir</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div style="text-align: right; border-top: 1px solid var(--border-light); padding-top: 24px;">
+            <button type="submit" class="btn btn-primary" style="padding: 12px 32px; font-size: 1rem;">
+                <i class="fa-solid fa-save"></i> Generar Orden de Trabajo
+            </button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}
