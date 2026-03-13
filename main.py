@@ -26,6 +26,7 @@ login_manager.login_message = 'Por favor inicie sesión para acceder a esta pág
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
+
 @app.route("/", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
@@ -47,7 +48,43 @@ def login():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    return f"Bienvenido, {current_user.name} (Rol: {current_user.role})"
+    from datetime import date
+    from app.models.order import Order
+    from app.models.billing import Invoice
+    
+    # Calculate metrics
+    pending_orders = Order.query.filter_by(status='Pendiente').count()
+    in_production = Order.query.filter_by(status='Producción').count()
+    ready_orders = Order.query.filter_by(status='Listo').count()
+    
+    pending_payments = Invoice.query.filter_by(status='Pendiente').count()
+    
+    # Today's deliveries
+    today = date.today()
+    today_deliveries = Order.query.filter(db.func.date(Order.delivery_date) == today).count()
+    
+    metrics = {
+        'pending_orders': pending_orders,
+        'in_production': in_production,
+        'ready_orders': ready_orders,
+        'pending_payments': pending_payments,
+        'today_deliveries': today_deliveries
+    }
+    
+    # Recent orders
+    recent_orders = Order.query.order_by(Order.created_at.desc()).limit(5).all()
+    
+    # Date formatting for string
+    dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    date_string = f"{dias[today.weekday()]} {today.day} de {meses[today.month - 1]}"
+
+    return render_template(
+        "dashboard.html", 
+        metrics=metrics, 
+        recent_orders=recent_orders,
+        date_string=date_string
+    )
 
 @app.route("/logout")
 @login_required

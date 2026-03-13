@@ -7,6 +7,10 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False) # The user who created the order
+    
+    title = db.Column(db.String(150), nullable=True) # Nombre del trabajo
+    has_design = db.Column(db.Boolean, default=False) # ¿Ya tienen diseño?
+    
     status = db.Column(db.String(50), nullable=False, default='Pendiente') # Pendiente, Diseño, Producción, Listo, Entregado
     delivery_date = db.Column(db.DateTime, nullable=True)
     total_amount = db.Column(db.Numeric(10, 2), default=0.0)

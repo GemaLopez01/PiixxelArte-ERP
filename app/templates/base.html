@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PiixxelArte ERP{% endblock %}</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            Piixxel<span>Arte</span>
+        </div>
+        <ul class="sidebar-menu">
+            <li>
+                <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <i class="fa-solid fa-chart-pie"></i> Dashboard
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class="fa-solid fa-layer-group"></i> Pedidos
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class="fa-solid fa-users"></i> Clientes
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class="fa-solid fa-box-open"></i> Productos
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class="fa-solid fa-warehouse"></i> Inventario
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Finanzas
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="main-wrapper">
+        
+        <!-- Top Navigation -->
+        <header class="topbar">
+            <!-- Optional Search/Breadcrumbs can go here -->
+            <div></div> 
+
+            <div class="user-profile">
+                <span class="role-badge">{{ current_user.role }}</span>
+                <strong>{{ current_user.name }}</strong>
+                <a href="{{ url_for('logout') }}" class="logout-btn">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Salir
+                </a>
+            </div>
+        </header>
+
+        <!-- Dynamic Content -->
+        <main class="content-area">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+</body>
+</html>
