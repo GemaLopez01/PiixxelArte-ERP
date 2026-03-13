@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="dashboard-title">
+        <h1>{{ 'Editar' if product else 'Nuevo' }} Producto o Servicio</h1>
+        <p>Agrega los detalles del servicio o producto para tu catálogo.</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('products_index') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="section-card" style="max-width: 800px; margin: 0 auto; padding: 32px;">
+    {% if product %}
+    <form method="POST" action="{{ url_for('edit_product', product_id=product.id) }}" enctype="multipart/form-data">
+    {% else %}
+    <form method="POST" action="{{ url_for('new_product') }}" enctype="multipart/form-data">
+    {% endif %}
+
+        <!-- Row 1: Código y Nombre -->
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 24px;">
+            <div class="form-group mb-0">
+                <label for="code" style="font-weight: 600;">Código (Opcional)</label>
+                <input type="text" class="form-control" style="padding: 12px; text-transform: uppercase;" id="code" name="code" placeholder="Ej. LONA-01" value="{{ product.code if product else '' }}">
+            </div>
+            <div class="form-group mb-0">
+                <label for="name" style="font-weight: 600;">Nombre del Producto *</label>
+                <input type="text" class="form-control" style="padding: 12px;" id="name" name="name" required placeholder="Ej. Lona Front de 13 oz" value="{{ product.name if product else '' }}">
+            </div>
+        </div>
+
+        <!-- Descripción -->
+        <div class="form-group mb-4">
+            <label for="description" style="font-weight: 600;">Descripción / Especificaciones</label>
+            <textarea class="form-control" style="padding: 12px;" id="description" name="description" rows="3">{{ product.description if product else '' }}</textarea>
+        </div>
+
+        <!-- Row 2: Precio, Unidad y File -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 32px;">
+            <!-- Precio Base -->
+            <div class="form-group mb-0">
+                <label for="base_price" style="font-weight: 600;">Precio Base ($) *</label>
+                <input type="number" step="0.01" class="form-control" style="padding: 12px;" id="base_price" name="base_price" required min="0" value="{{ product.base_price if product else '' }}">
+            </div>
+
+            <!-- Unidad de Medida -->
+            <div class="form-group mb-0">
+                <label for="unit_measure" style="font-weight: 600;">Unidad de Medida *</label>
+                <select class="form-control" style="padding: 12px;" id="unit_measure" name="unit_measure" required>
+                    <option value="Pieza" {% if product and product.unit_measure == 'Pieza' %}selected{% endif %}>Pieza</option>
+                    <option value="Metro Lineal" {% if product and product.unit_measure == 'Metro Lineal' %}selected{% endif %}>Metro Lineal</option>
+                    <option value="M2" {% if product and product.unit_measure == 'M2' %}selected{% endif %}>M2 (Metro Cuadrado)</option>
+                    <option value="Paquete" {% if product and product.unit_measure == 'Paquete' %}selected{% endif %}>Paquete</option>
+                    <option value="Servicio" {% if product and product.unit_measure == 'Servicio' %}selected{% endif %}>Servicio Único</option>
+                </select>
+            </div>
+
+            <!-- Impuestos Checkbox -->
+            <div class="form-group mb-0" style="display: flex; flex-direction: column; justify-content: center;">
+                <label style="font-weight: 600; margin-bottom: 8px;">Impuestos (IVA)</label>
+                <label class="switch" style="display: inline-flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="has_tax" id="has_tax" style="width: 20px; height: 20px; margin-right: 12px;" {% if product and product.has_tax %}checked{% endif %}>
+                    <span style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">Aplicar 16%</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Image Upload -->
+        <div class="form-group" style="background:#F9FAFB; padding:20px; border-radius:8px; border:1px dashed var(--border-color); margin-bottom:24px;">
+            <label for="image" style="font-weight: 600; display: block; margin-bottom: 12px;">Imagen del Producto (Opcional)</label>
+            
+            {% if product and product.image_path %}
+                <div style="margin-bottom: 15px;">
+                    <img src="{{ url_for('static', filename=product.image_path) }}" alt="Preview" style="max-width: 150px; border-radius: 8px; border: 1px solid var(--border-light);">
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px;">Imagen actual. Sube una nueva para reemplazarla.</p>
+                </div>
+            {% endif %}
+
+            <input type="file" id="image" name="image" accept="image/*" style="font-size: 0.9rem; color: var(--text-secondary);">
+        </div>
+
+        <!-- Submit -->
+        <div style="text-align: right; border-top: 1px solid var(--border-light); padding-top: 24px; margin-top: 10px;">
+            <button type="submit" class="btn btn-primary" style="padding: 12px 32px; font-size: 1rem;">
+                <i class="fa-solid fa-save"></i> Guardar Producto
+            </button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}

@@ -2,6 +2,7 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
 
 # Load env variables
 load_dotenv()
@@ -15,6 +16,8 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key-for-
 # Use PostgreSQL if provided, otherwise fallback to SQLite for immediate functionality
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///piixxelarte.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads', 'products')
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 db.init_app(app)
 migrate.init_app(app, db)
@@ -343,6 +346,105 @@ def delete_order(order_id):
 
     flash('Pedido eliminado correctamente.', 'success')
     return redirect(url_for('orders_index'))
+
+@app.route("/products")
+@login_required
+def products_index():
+    from app.models.product import Product
+    products = Product.query.order_by(Product.name.asc()).all()
+    return render_template("products/index.html", products=products)
+
+@app.route("/products/new", methods=["GET", "POST"])
+@login_required
+def new_product():
+    from app.models.product import Product
+    
+    if request.method == "POST":
+        code = request.form.get('code')
+        name = request.form.get('name')
+        description = request.form.get('description')
+        base_price = request.form.get('base_price')
+        unit_measure = request.form.get('unit_measure', 'Pieza')
+        has_tax = request.form.get('has_tax') == 'on'
+        
+        # Handle file upload
+        image_path = None
+        if 'image' in request.files:
+            file = request.files['image']
+            if file.filename != '':
+                filename = secure_filename(file.filename)
+                # To avoid collisions we could prepend a timestamp, but let's keep it simple
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                image_path = f'uploads/products/{filename}'
+        
+        # dynamic pricing flag compatibility based on unit
+        is_dynamic = unit_measure.lower() in ['m2', 'metro lineal']
+        
+        new_prod = Product(
+            code=code,
+            name=name,
+            description=description,
+            base_price=float(base_price),
+            unit_measure=unit_measure,
+            has_tax=has_tax,
+            image_path=image_path,
+            is_dynamic_pricing=is_dynamic
+        )
+        db.session.add(new_prod)
+        db.session.commit()
+        
+        flash('Producto agregado exitosamente.', 'success')
+        return redirect(url_for('products_index'))
+        
+    return render_template("products/form.html", product=None)
+
+@app.route("/products/<int:product_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_product(product_id):
+    from app.models.product import Product
+    
+    product = Product.query.get_or_404(product_id)
+    
+    if request.method == "POST":
+        product.code = request.form.get('code')
+        product.name = request.form.get('name')
+        product.description = request.form.get('description')
+        product.base_price = float(request.form.get('base_price'))
+        product.unit_measure = request.form.get('unit_measure', 'Pieza')
+        product.has_tax = request.form.get('has_tax') == 'on'
+        
+        product.is_dynamic_pricing = product.unit_measure.lower() in ['m2', 'metro lineal']
+        
+        if 'image' in request.files:
+            file = request.files['image']
+            if file.filename != '':
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                product.image_path = f'uploads/products/{filename}'
+                
+        db.session.commit()
+        flash('Producto actualizado correctamente.', 'success')
+        return redirect(url_for('products_index'))
+        
+    return render_template("products/form.html", product=product)
+
+@app.route("/products/<int:product_id>/delete", methods=["POST"])
+@login_required
+def delete_product(product_id):
+    from app.models.product import Product
+    from app.models.order import OrderItem
+    
+    product = Product.query.get_or_404(product_id)
+    
+    # Check dependencies
+    if OrderItem.query.filter_by(product_id=product.id).count() > 0:
+        flash('No se puede eliminar el producto porque está siendo utilizado en pedidos.', 'danger')
+    else:
+        db.session.delete(product)
+        db.session.commit()
+        flash('Producto eliminado correctamente.', 'success')
+        
+    return redirect(url_for('products_index'))
 
 
 @app.route("/logout")
