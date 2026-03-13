@@ -1,0 +1,43 @@
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* Lado izquierdo */
+.branding-section {
+    background: linear-gradient(180deg, #0F1E2E 0%, #2BB3E6 100%);
+    position: relative;
+}
+
+.branding-content {
+    margin: auto;
+}
+
+.logo {
+    width: 150px;
+}
+
+/* Tarjeta de login */
+.login-card {
+    width: 100%;
+    max-width: 400px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+
+/* Botón personalizado */
+.btn-primary {
+    background-color: #2BB3E6;
+    border: none;
+}
+
+.btn-primary:hover {
+    background-color: #239ac7;
+}
+
+/* Inputs focus */
+.form-control:focus {
+    border-color: #2BB3E6;
+    box-shadow: 0 0 0 0.2rem rgba(43,179,230,0.25);
+}
