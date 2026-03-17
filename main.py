@@ -1,5 +1,6 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+import time
+from flask import Flask, render_template, request, redirect, url_for, session, flash, g
 from flask_login import login_user, logout_user, login_required, current_user
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
@@ -30,6 +31,39 @@ migrate.init_app(app, db)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Por favor inicie sesión para acceder a esta página.'
+
+@app.before_request
+def log_and_prepare():
+    g.start_time = time.time()
+    app.logger.info("%s %s from %s", request.method, request.path, request.remote_addr)
+
+@app.after_request
+def set_security_headers(response):
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+        "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self';"
+    )
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=()"
+    response.headers["Cache-Control"] = "no-store"
+    if hasattr(g, 'start_time'):
+        ms = int((time.time() - g.start_time) * 1000)
+        app.logger.debug("Request processing time: %dms", ms)
+    return response
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return render_template("404.html"), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return render_template("500.html"), 500
 
 @app.context_processor
 def inject_alerts():

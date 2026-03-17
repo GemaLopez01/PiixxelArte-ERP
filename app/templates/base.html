@@ -18,7 +18,12 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-header">
-            Piixxel<span>Arte</span>
+            <div class="sidebar-placeholder">
+                <img src="{{ url_for('static', filename='img/logo-piixxi.png') }}" alt="Logo" class="sidebar-logo" onerror="this.style.display='none'">
+                <button id="sidebar-toggle" class="btn btn-secondary btn-sidebar-toggle" type="button" title="Mostrar/Ocultar menú">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
         </div>
         <ul class="sidebar-menu">
             <li>
@@ -130,5 +135,16 @@
         </main>
     </div>
 
+    <script>
+        const sidebarToggleBtns = document.querySelectorAll('#sidebar-toggle');
+        sidebarToggleBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.body.classList.toggle('sidebar-hidden');
+            });
+        });
+    </script>
+</body>
+</html>
+    </script>
 </body>
 </html>

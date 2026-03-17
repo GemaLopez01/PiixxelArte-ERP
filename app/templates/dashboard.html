@@ -18,6 +18,39 @@
 
 <!-- Metrics Grid -->
 <div class="metrics-grid">
+    <div class="metric-card today">
+        <div class="metric-header">
+            <span class="metric-title">Entregas de Hoy</span>
+            <div class="metric-icon">
+                <i class="fa-solid fa-calendar-day"></i>
+            </div>
+        </div>
+        <div class="metric-value">{{ metrics.today_deliveries }}</div>
+        <div class="metric-subtitle">Programadas para 24hrs</div>
+    </div>
+
+    <div class="metric-card ready">
+        <div class="metric-header">
+            <span class="metric-title">Listos / Para Entregar</span>
+            <div class="metric-icon">
+                <i class="fa-solid fa-clipboard-check"></i>
+            </div>
+        </div>
+        <div class="metric-value">{{ metrics.ready_orders }}</div>
+        <div class="metric-subtitle">Pedidos terminados</div>
+    </div>
+
+    <div class="metric-card production">
+        <div class="metric-header">
+            <span class="metric-title">En Producción</span>
+            <div class="metric-icon">
+                <i class="fa-solid fa-industry"></i>
+            </div>
+        </div>
+        <div class="metric-value">{{ metrics.in_production }}</div>
+        <div class="metric-subtitle">Trabajos activos en este momento</div>
+    </div>
+
     <div class="metric-card pending">
         <div class="metric-header">
             <span class="metric-title">Pedidos Pendientes</span>
@@ -29,33 +62,11 @@
         <div class="metric-subtitle">Aún sin iniciar diseño/producción</div>
     </div>
 
-    <div class="metric-card production">
-        <div class="metric-header">
-            <span class="metric-title">En Producción</span>
-            <div class="metric-icon">
-                <i class="fa-solid fa-print"></i>
-            </div>
-        </div>
-        <div class="metric-value">{{ metrics.in_production }}</div>
-        <div class="metric-subtitle">Trabajos activos en este momento</div>
-    </div>
-
-    <div class="metric-card ready">
-        <div class="metric-header">
-            <span class="metric-title">Listos / Para Entregar</span>
-            <div class="metric-icon">
-                <i class="fa-solid fa-check"></i>
-            </div>
-        </div>
-        <div class="metric-value">{{ metrics.ready_orders }}</div>
-        <div class="metric-subtitle">Pedidos terminados</div>
-    </div>
-
     <div class="metric-card payment">
         <div class="metric-header">
             <span class="metric-title">Ventas Totales</span>
             <div class="metric-icon">
-                <i class="fa-solid fa-sack-dollar"></i>
+                <i class="fa-solid fa-dollar-sign"></i>
             </div>
         </div>
         <div class="metric-value">${{ "%.2f"|format(metrics.total_sales) }}</div>
@@ -64,13 +75,24 @@
 
     <div class="metric-card payment">
         <div class="metric-header">
-            <span class="metric-title">Anticipos / Pagado</span>
+            <span class="metric-title">Anticipos</span>
             <div class="metric-icon">
                 <i class="fa-solid fa-hand-holding-dollar"></i>
             </div>
         </div>
         <div class="metric-value">${{ "%.2f"|format(metrics.total_advances) }}</div>
         <div class="metric-subtitle">Dinero ingresado</div>
+    </div>
+
+    <div class="metric-card success">
+        <div class="metric-header">
+            <span class="metric-title">Pagado</span>
+            <div class="metric-icon">
+                <i class="fa-solid fa-money-bill-wave"></i>
+            </div>
+        </div>
+        <div class="metric-value">${{ "%.2f"|format(metrics.total_advances) }}</div>
+        <div class="metric-subtitle">Pago registrado</div>
     </div>
 
     <div class="metric-card warning">
@@ -83,18 +105,22 @@
         <div class="metric-value">${{ "%.2f"|format(metrics.pending_balance) }}</div>
         <div class="metric-subtitle">Por cobrar ({{ metrics.pending_payments }} notas)</div>
     </div>
-    
-    <div class="metric-card today">
-        <div class="metric-header">
-            <span class="metric-title">Entregas de Hoy</span>
-            <div class="metric-icon">
-                <i class="fa-solid fa-calendar-star"></i>
-            </div>
-        </div>
-        <div class="metric-value">{{ metrics.today_deliveries }}</div>
-        <div class="metric-subtitle">Programadas para 24hrs</div>
+</div>
+
+<!-- Charts Grid -->
+<div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 20px;">
+    <div class="section-card" style="min-height: 250px;">
+        <div class="section-header"><h2 class="section-title">Estado de Pagos</h2></div>
+        <div style="height: 180px; width: 100%;"><canvas id="statusChart"></canvas></div>
+    </div>
+    <div class="section-card" style="min-height: 250px;">
+        <div class="section-header"><h2 class="section-title">Métodos de Pago</h2></div>
+        <div style="height: 180px; width: 100%;"><canvas id="methodsChart"></canvas></div>
     </div>
 </div>
+
+<script id="status-data" type="application/json">{{ status_dict | tojson | safe }}</script>
+<script id="methods-data" type="application/json">{{ methods_dict | tojson | safe }}</script>
 
 <!-- Main Grid for Tables and Info -->
 <div class="dashboard-grid">
@@ -194,66 +220,6 @@
 
 <!-- Include Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    // Inject server-rendered JSON data safely
-    const statusDataRaw = {{ status_dict | tojson | safe }};
-    const methodsDataRaw = {{ methods_dict | tojson | safe }};
-    
-    // Status Chart (Doughnut)
-    const ctxStatus = document.getElementById('statusChart').getContext('2d');
-    new Chart(ctxStatus, {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(statusDataRaw),
-            datasets: [{
-                data: Object.values(statusDataRaw),
-                backgroundColor: [
-                    '#10B981', // Pagado (Green)
-                    '#F59E0B', // Parcial (Yellow/Orange)
-                    '#EF4444'  // Pendiente (Red)
-                ],
-                borderWidth: 0,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom' }
-            }
-        }
-    });
-
-    // Methods Chart (Bar)
-    const ctxMethods = document.getElementById('methodsChart').getContext('2d');
-    new Chart(ctxMethods, {
-        type: 'bar',
-        data: {
-            labels: Object.keys(methodsDataRaw),
-            datasets: [{
-                label: 'Cantidad de Operaciones',
-                data: Object.values(methodsDataRaw),
-                backgroundColor: '#3B82F6', // Blue
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { precision: 0 }
-                }
-            }
-        }
-    });
-});
-</script>
+<script src="{{ url_for('static', filename='js/dashboard-charts.js') }}"></script>
 
 {% endblock %}

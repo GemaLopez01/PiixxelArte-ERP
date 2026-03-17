@@ -11,12 +11,14 @@
   /* Neutral Dark Mode Palette (can be adapted) */
   --bg-app: #F3F4F6; /* Light gray for app background */
   --bg-surface: #FFFFFF; /* White for cards */
-  --bg-sidebar: #1E1B4B; /* Deep Indigo for sidebar */
+  --bg-sidebar: #808080; /* Sidebar background (custom hex handover: reemplazar) */
+  --bg-sidebar-hover: #16203B; /* Hover state */
   
   --text-primary: #111827;
   --text-secondary: #4B5563;
   --text-light: #F9FAFB;
-  --text-sidebar: #A5B4FC;
+  --text-sidebar: #16203B; /* color de texto del sidebar */
+  --text-sidebar-active: #E6DAFF; /* color activo */
   
   --border-light: #E5E7EB;
   
@@ -40,8 +42,8 @@
   /* Metrics */
   --radius-lg: 12px;
   --radius-xl: 16px;
-  --sidebar-width: 260px;
-  --topbar-height: 70px;
+  --sidebar-width: 220px;
+  --topbar-height: 64px;
   
   /* Transitions */
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -77,17 +79,66 @@ body {
   transition: var(--transition);
 }
 
+.sidebar-hidden .sidebar {
+  transform: translateX(-100%);
+}
+
+.sidebar-hidden .main-wrapper {
+  margin-left: 0;
+}
+
+.sidebar-menu a {
+  color: var(--text-sidebar);
+}
+
+.sidebar-menu a:hover,
+.sidebar-menu a.active {
+  color: var(--text-sidebar-active);
+  background-color: var(--bg-sidebar-hover);
+}
+
+.sidebar-logo {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.sidebar-placeholder {
+  width: 100%;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-placeholder span {
+  color: var(--text-sidebar);
+  font-weight: 700;
+}
+
+
 .sidebar-header {
-  padding: 24px 20px;
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #fff;
+  padding: 12px 14px;
+  /* text and color are set by child elements */
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   letter-spacing: -0.5px;
+}
+.sidebar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 .sidebar-header span {
   color: var(--secondary);
 }
+.btn-sidebar-toggle {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
 
 .sidebar-menu {
   list-style: none;
@@ -102,11 +153,12 @@ body {
 .sidebar-menu a {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 24px;
+  gap: 10px;
+  padding: 10px 18px;
   color: var(--text-sidebar);
   text-decoration: none;
   font-weight: 500;
+  font-size: 0.9rem;
   transition: var(--transition);
   position: relative;
 }
@@ -197,6 +249,152 @@ body {
   padding: 32px;
   flex: 1;
 }
+
+.payment-status {
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Responsive layout */
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 220px;
+  }
+
+  .main-wrapper {
+    margin-left: 220px;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .metrics-grid {
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  body.sidebar-hidden .main-wrapper {
+    margin-left: 0;
+  }
+
+  .sidebar {
+    position: absolute;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  body.sidebar-hidden .sidebar {
+    transform: translateX(-100%);
+  }
+
+  body:not(.sidebar-hidden) .sidebar {
+    transform: translateX(0);
+  }
+
+  .main-wrapper {
+    margin-left: 0;
+  }
+
+  .topbar {
+    padding: 0.75rem;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .metrics-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .content-area {
+    padding: 18px;
+  }
+
+  .user-profile {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 600px) {
+  .sidebar {
+    width: 190px;
+  }
+
+  .sidebar-header {
+    padding: 10px;
+  }
+
+  .sidebar-menu a {
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+
+  .dashboard-header {
+    margin-bottom: 14px;
+  }
+
+  .dashboard-title h1 {
+    font-size: 1.4rem;
+  }
+
+  .dashboard-title p {
+    font-size: 0.85rem;
+  }
+
+  .metrics-grid,
+  .charts-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .section-card {
+    padding: 12px;
+  }
+
+  .table-responsive table {
+    font-size: 0.78rem;
+  }
+
+  .header-actions .btn {
+    font-size: 0.75rem;
+    padding: 8px 12px;
+  }
+}
+
+
+.payment-status.status-pagado {
+  background: #dcfce7;
+  color: #166534;
+}
+.payment-status.status-parcial {
+  background: #fef9c3;
+  color: #854d0e;
+}
+.payment-status.status-pendiente {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 
 /* Buttons */
 .btn {
