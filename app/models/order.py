@@ -13,7 +13,17 @@ class Order(db.Model):
     
     status = db.Column(db.String(50), nullable=False, default='Pendiente') # Pendiente, Diseño, Producción, Listo, Entregado
     delivery_date = db.Column(db.DateTime, nullable=True)
-    total_amount = db.Column(db.Numeric(10, 2), default=0.0)
+    
+    subtotal_amount = db.Column(db.Numeric(10, 2), default=0.0) # Sum of all items before global discount
+    discount_amount = db.Column(db.Numeric(10, 2), default=0.0) # Global manual discount
+    tax_amount = db.Column(db.Numeric(10, 2), default=0.0)      # IVA explicitly tracked
+    total_amount = db.Column(db.Numeric(10, 2), default=0.0)    # Final amount
+    
+    # Financial Tracking
+    advance_payment = db.Column(db.Numeric(10, 2), default=0.0) # Anticipo
+    payment_method = db.Column(db.String(50), nullable=True)    # Efectivo, Tarjeta, Transferencia
+    payment_status = db.Column(db.String(50), default='Pendiente de pago') # Pendiente de pago, Parcial, Pagado
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -34,4 +44,5 @@ class OrderItem(db.Model):
     height = db.Column(db.Numeric(8, 2), nullable=True) 
     
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
+    discount_applied = db.Column(db.Boolean, default=False) # True if min_qty was met
     subtotal = db.Column(db.Numeric(10, 2), nullable=False)

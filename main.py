@@ -201,59 +201,87 @@ def new_order():
     if request.method == "POST":
         customer_id = request.form.get('customer_id')
         title = request.form.get('title')
-        product_id = request.form.get('product_id')
-        quantity = int(request.form.get('quantity', 1))
-        
-        # Dimensions are optional but could be relevant based on product
-        width = request.form.get('width')
-        height = request.form.get('height')
-        width = float(width) if width else None
-        height = float(height) if height else None
         
         delivery_date_str = request.form.get('delivery_date')
         delivery_date = datetime.strptime(delivery_date_str, '%Y-%m-%d') if delivery_date_str else None
-        
         has_design = request.form.get('has_design') == 'on'
         
-        # Calculate subtotal based on product
-        product = db.session.get(Product, product_id)
-        unit_price = product.base_price
+        # Arrays from dynamic table fields
+        product_ids = request.form.getlist('product_id[]')
+        quantities = request.form.getlist('quantity[]')
+        widths = request.form.getlist('width[]')
+        heights = request.form.getlist('height[]')
         
-        # Very basic dynamic pricing concept (e.g for canvas/vinyl)
-        if product.is_dynamic_pricing and width and height:
-            # e.g price is per square meter
-            area = (width / 100) * (height / 100)  # Convert cm to m
-            subtotal = area * float(unit_price) * quantity
-        else:
-            subtotal = float(unit_price) * quantity
-            
-        # Create Order
+        discount_amount_str = request.form.get('discount_amount')
+        discount_amount = float(discount_amount_str) if discount_amount_str else 0.0
+        
+        # We start with 0, we'll accumulate throughout the loop
+        total_amount = 0.0
+        
+        # Create Order (Base)
         new_order = Order(
             customer_id=customer_id,
             user_id=current_user.id,
             title=title,
             has_design=has_design,
             delivery_date=delivery_date,
-            total_amount=subtotal, # Since we only support 1 item per order screen for now
+            total_amount=0.0, # Will be updated after saving items
             status='Pendiente'
         )
         db.session.add(new_order)
         db.session.flush() # Get the new_order.id
         
-        # Create OrderItem
-        new_item = OrderItem(
-            order_id=new_order.id,
-            product_id=product.id,
-            quantity=quantity,
-            width=width,
-            height=height,
-            unit_price=unit_price,
-            subtotal=subtotal
-        )
-        db.session.add(new_item)
+        # Loop over the items
+        for i in range(len(product_ids)):
+            if not product_ids[i]: # Skip empty rows
+                continue
+                
+            p_id = product_ids[i]
+            qty = int(quantities[i]) if quantities[i] else 1
+            w = float(widths[i]) if widths[i] else None
+            h = float(heights[i]) if heights[i] else None
+            
+            product = db.session.get(Product, p_id)
+            if not product:
+                continue
+
+            # Calculate effective price per piece based on dimensions and min_price
+            unit_price = product.calculate_unit_price(width=w, height=h)
+            subtotal = unit_price * qty
+
+            # Add implicit tax logic (if desired later, could accumulate here, assuming base_price includes tax or is subtotal) # TODO
+            if product.has_tax:
+                subtotal = subtotal * 1.16
+
+            # Automatic discount logic
+            discount_applied = False
+            if product.min_qty_discount and product.discount_percentage:
+                if qty >= product.min_qty_discount:
+                    discount_fraction = float(product.discount_percentage) / 100.0
+                    subtotal = subtotal * (1.0 - discount_fraction)
+                    discount_applied = True
+
+            total_amount += subtotal
+
+            # Create OrderItem
+            new_item = OrderItem(
+                order_id=new_order.id,
+                product_id=p_id,
+                quantity=qty,
+                width=w,
+                height=h,
+                unit_price=unit_price,
+                discount_applied=discount_applied,
+                subtotal=subtotal
+            )
+            db.session.add(new_item)
+            
+        new_order.subtotal_amount = total_amount
+        new_order.discount_amount = discount_amount
+        new_order.total_amount = total_amount - discount_amount
         db.session.commit()
         
-        flash('Pedido creado exitosamente.', 'success')
+        flash('Pedido creado exitosamente con múltiples productos.', 'success')
         return redirect(url_for('orders_index'))
         
     # GET: fetch customers and products for the dropdowns
@@ -272,49 +300,88 @@ def edit_order(order_id):
     from datetime import datetime
 
     order = Order.query.get_or_404(order_id)
-    order_item = OrderItem.query.filter_by(order_id=order.id).first()
+    order_items = OrderItem.query.filter_by(order_id=order.id).all()
 
     if request.method == "POST":
         customer_id = request.form.get('customer_id')
-        product_id = request.form.get('product_id')
-        quantity = int(request.form.get('quantity', 1))
-
-        width = request.form.get('width')
-        height = request.form.get('height')
-        width = float(width) if width else None
-        height = float(height) if height else None
-
+        title = request.form.get('title')
+        
         delivery_date_str = request.form.get('delivery_date')
         delivery_date = datetime.strptime(delivery_date_str, '%Y-%m-%d') if delivery_date_str else None
-
+        has_design = request.form.get('has_design') == 'on'
         status = request.form.get('status') or order.status
 
-        # Update order
+        # Update base order
         order.customer_id = customer_id
+        order.title = title
+        order.has_design = has_design
         order.delivery_date = delivery_date
         order.status = status
+        
+        # Arrays from dynamic table fields
+        product_ids = request.form.getlist('product_id[]')
+        quantities = request.form.getlist('quantity[]')
+        widths = request.form.getlist('width[]')
+        heights = request.form.getlist('height[]')
+        
+        discount_amount_str = request.form.get('discount_amount')
+        discount_amount = float(discount_amount_str) if discount_amount_str else 0.0
+        
+        # For simplicity in editing multiple items, we wipe existing items and recreate them
+        OrderItem.query.filter_by(order_id=order.id).delete()
+        
+        total_amount = 0.0
 
-        # Update order item (if exists)
-        if order_item:
-            order_item.product_id = product_id
-            order_item.quantity = quantity
-            order_item.width = width
-            order_item.height = height
+        # Create new OrderItems
+        for i in range(len(product_ids)):
+            if not product_ids[i]: # Skip empty rows
+                continue
+                
+            p_id = product_ids[i]
+            qty = int(quantities[i]) if quantities[i] else 1
+            w = float(widths[i]) if widths[i] else None
+            h = float(heights[i]) if heights[i] else None
+            
+            product = db.session.get(Product, p_id)
+            if not product:
+                continue
 
-            # recalc subtotal based on product price and dimensions
-            product = db.session.get(Product, product_id)
-            unit_price = product.base_price
-            order_item.unit_price = unit_price
+            # Calculate effective price per piece based on dimensions and min_price
+            unit_price = product.calculate_unit_price(width=w, height=h)
+            subtotal = unit_price * qty
 
-            if product.is_dynamic_pricing and width and height:
-                area = (width / 100) * (height / 100)
-                order_item.subtotal = area * float(unit_price) * quantity
-            else:
-                order_item.subtotal = float(unit_price) * quantity
+            # Add implicit tax logic (if desired later, could accumulate here, assuming base_price includes tax or is subtotal) # TODO
+            if product.has_tax:
+                subtotal = subtotal * 1.16
 
-            order.total_amount = order_item.subtotal
+            # Automatic discount logic
+            discount_applied = False
+            if product.min_qty_discount and product.discount_percentage:
+                if qty >= product.min_qty_discount:
+                    discount_fraction = float(product.discount_percentage) / 100.0
+                    subtotal = subtotal * (1.0 - discount_fraction)
+                    discount_applied = True
 
+            total_amount += subtotal
+
+            # Create OrderItem
+            new_item = OrderItem(
+                order_id=order.id,
+                product_id=p_id,
+                quantity=qty,
+                width=w,
+                height=h,
+                unit_price=unit_price,
+                discount_applied=discount_applied,
+                subtotal=subtotal
+            )
+            db.session.add(new_item)
+            
+        order.subtotal_amount = total_amount
+        order.discount_amount = discount_amount
+        order.total_amount = total_amount - discount_amount
         db.session.commit()
+        
         flash('Pedido actualizado correctamente.', 'success')
         return redirect(url_for('orders_index'))
 
@@ -324,7 +391,7 @@ def edit_order(order_id):
     return render_template(
         "orders/edit.html",
         order=order,
-        order_item=order_item,
+        order_items=order_items,
         customers=customers,
         products=products
     )
@@ -367,6 +434,14 @@ def new_product():
         unit_measure = request.form.get('unit_measure', 'Pieza')
         has_tax = request.form.get('has_tax') == 'on'
         
+        min_qty_discount = request.form.get('min_qty_discount')
+        discount_percentage = request.form.get('discount_percentage')
+        min_qty_discount = int(min_qty_discount) if min_qty_discount else None
+        discount_percentage = float(discount_percentage) if discount_percentage else None
+        
+        min_price = request.form.get('min_price')
+        min_price = float(min_price) if min_price else None
+        
         # Handle file upload
         image_path = None
         if 'image' in request.files:
@@ -388,7 +463,10 @@ def new_product():
             unit_measure=unit_measure,
             has_tax=has_tax,
             image_path=image_path,
-            is_dynamic_pricing=is_dynamic
+            is_dynamic_pricing=is_dynamic,
+            min_qty_discount=min_qty_discount,
+            discount_percentage=discount_percentage,
+            min_price=min_price
         )
         db.session.add(new_prod)
         db.session.commit()
@@ -412,6 +490,15 @@ def edit_product(product_id):
         product.base_price = float(request.form.get('base_price'))
         product.unit_measure = request.form.get('unit_measure', 'Pieza')
         product.has_tax = request.form.get('has_tax') == 'on'
+        
+        min_qty_discount = request.form.get('min_qty_discount')
+        product.min_qty_discount = int(min_qty_discount) if min_qty_discount else None
+        
+        discount_percentage = request.form.get('discount_percentage')
+        product.discount_percentage = float(discount_percentage) if discount_percentage else None
+        
+        min_price = request.form.get('min_price')
+        product.min_price = float(min_price) if min_price else None
         
         product.is_dynamic_pricing = product.unit_measure.lower() in ['m2', 'metro lineal']
         
