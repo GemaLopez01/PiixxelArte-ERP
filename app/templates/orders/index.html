@@ -18,30 +18,43 @@
         <table class="modern-table">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Trabajo</th>
+                    <th>Fecha</th>
+                    <th>Nota</th>
                     <th>Cliente</th>
-                    <th>Fecha Estimada</th>
+                    <th>Subtotal</th>
+                    <th>IVA</th>
                     <th>Total</th>
-                    <th>Estado</th>
+                    <th>Anticipo</th>
+                    <th>Saldo</th>
+                    <th>Estado de Pago</th>
+                    <th>Método</th>
+                    <th>Estado de Trabajo</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for order in orders %}
                 <tr>
-                    <td class="order-id">#{{ "%04d" | format(order.id) }}</td>
-                    <td>
-                        <strong>{{ order.title or 'Sin título' }}</strong>
-                        {% if order.has_design %}
-                            <span style="font-size: 0.7rem; background:#E0E7FF; color:#4F46E5; padding:2px 6px; border-radius:4px; margin-left:4px;">Con Diseño</span>
-                        {% else %}
-                            <span style="font-size: 0.7rem; background:#FEE2E2; color:#DC2626; padding:2px 6px; border-radius:4px; margin-left:4px;">Sin Diseño</span>
-                        {% endif %}
+                    <td>{{ order.created_at.strftime('%d/%m/%Y') }}</td>
+                    <td class="order-id">
+                        #{{ "%04d" | format(order.id) }}<br>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ order.title or 'Sin título' }}</span>
                     </td>
                     <td class="customer-name">{{ order.customer.name }}</td>
-                    <td>{{ order.delivery_date.strftime('%d/%m/%Y') if order.delivery_date else 'Sin especificar' }}</td>
-                    <td>${{ "%.2f" | format(order.total_amount) }}</td>
+                    <td>${{ "%.2f" | format(order.subtotal_amount or 0) }}</td>
+                    <td>${{ "%.2f" | format(order.tax_amount or 0) }}</td>
+                    <td style="font-weight: bold; color: var(--primary);">${{ "%.2f" | format(order.total_amount or 0) }}</td>
+                    <td style="color: #15803d;">${{ "%.2f" | format(order.advance_payment or 0) }}</td>
+                    <td style="font-weight: bold; color: #b91c1c;">${{ "%.2f" | format((order.total_amount or 0) - (order.advance_payment or 0)) }}</td>
+                    <td>
+                        <span style="font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; 
+                            {% if order.payment_status == 'Pagado' %}background:#dcfce7; color:#166534;
+                            {% elif order.payment_status == 'Parcial' %}background:#fef9c3; color:#854d0e;
+                            {% else %}background:#fee2e2; color:#991b1b;{% endif %}">
+                            {{ order.payment_status or 'Pendiente' }}
+                        </span>
+                    </td>
+                    <td>{{ order.payment_method or 'N/A' }}</td>
                     <td><span class="status-badge status-{{ order.status|replace(' ', '') }}">{{ order.status }}</span></td>
                     <td class="action-buttons" style="display: flex; gap: 6px;">
                         <a href="{{ url_for('edit_order', order_id=order.id) }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
@@ -56,7 +69,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 40px;">
+                    <td colspan="12" style="text-align: center; color: var(--text-secondary); padding: 40px;">
                         No tienes ningún pedido registrado.
                     </td>
                 </tr>

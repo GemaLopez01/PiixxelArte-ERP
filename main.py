@@ -10,6 +10,12 @@ load_dotenv()
 from app.extensions import db, login_manager, migrate
 from app.models.user import User
 import app.models  # Ensure all models are loaded
+from app.models.customer import Customer
+from app.models.product import Product
+from app.models.order import Order, OrderItem
+from app.models.billing import Invoice
+from app.models.inventory import Supplier, Material, InventoryMovement, Purchase, PurchaseItem
+from datetime import datetime
 
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key-for-dev')
@@ -24,6 +30,16 @@ migrate.init_app(app, db)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Por favor inicie sesión para acceder a esta página.'
+
+@app.context_processor
+def inject_alerts():
+    if current_user.is_authenticated:
+        try:
+            alerts_count = Material.query.filter(Material.stock_quantity <= Material.min_stock).count()
+            return dict(low_stock_alerts_count=alerts_count)
+        except Exception:
+            return dict(low_stock_alerts_count=0)
+    return dict(low_stock_alerts_count=0)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -60,8 +76,25 @@ def dashboard():
     in_production = Order.query.filter_by(status='Producción').count()
     ready_orders = Order.query.filter_by(status='Listo').count()
     
-    pending_payments = Invoice.query.filter_by(status='Pendiente').count()
+    # Financial metrics
+    # Note: sum() returns a Decimal or None
+    total_sales_result = db.session.query(db.func.sum(Order.total_amount)).scalar()
+    total_sales = float(total_sales_result) if total_sales_result else 0.0
+
+    total_advances_result = db.session.query(db.func.sum(Order.advance_payment)).scalar()
+    total_advances = float(total_advances_result) if total_advances_result else 0.0
+
+    pending_payments_count = Order.query.filter_by(payment_status='Pendiente de pago').count()
+    partial_payments_count = Order.query.filter_by(payment_status='Parcial').count()
+    pending_balance = total_sales - total_advances
     
+    # Chart Data Preparation (Group by Method)
+    methods_data = db.session.query(Order.payment_method, db.func.count(Order.id)).group_by(Order.payment_method).all()
+    methods_dict = {method if method else 'No definido': count for method, count in methods_data}
+
+    status_data = db.session.query(Order.payment_status, db.func.count(Order.id)).group_by(Order.payment_status).all()
+    status_dict = {status if status else 'Desconocido': count for status, count in status_data}
+
     # Today's deliveries
     today = date.today()
     today_deliveries = Order.query.filter(db.func.date(Order.delivery_date) == today).count()
@@ -70,8 +103,11 @@ def dashboard():
         'pending_orders': pending_orders,
         'in_production': in_production,
         'ready_orders': ready_orders,
-        'pending_payments': pending_payments,
-        'today_deliveries': today_deliveries
+        'pending_payments': pending_payments_count + partial_payments_count,
+        'today_deliveries': today_deliveries,
+        'total_sales': total_sales,
+        'total_advances': total_advances,
+        'pending_balance': pending_balance
     }
     
     # Recent orders
@@ -86,8 +122,242 @@ def dashboard():
         "dashboard.html", 
         metrics=metrics, 
         recent_orders=recent_orders,
-        date_string=date_string
+        date_string=date_string,
+        methods_dict=methods_dict,
+        status_dict=status_dict
     )
+
+# ==============================================================================
+# INVENTORY: MATERIALS
+# ==============================================================================
+@app.route("/inventory/materials")
+@login_required
+def inventory_materials():
+    materials = Material.query.order_by(Material.name.asc()).all()
+    # Identificar aquellos que requieren reabastecimiento
+    alerts_count = Material.query.filter(Material.stock_quantity <= Material.min_stock).count()
+    return render_template("inventory/materials.html", materials=materials, alerts_count=alerts_count)
+
+@app.route("/inventory/materials/new", methods=["GET", "POST"])
+@login_required
+def new_material():
+    if request.method == "POST":
+        new_mat = Material(
+            name=request.form.get("name"),
+            category=request.form.get("category"),
+            stock_quantity=request.form.get("stock_quantity", type=float),
+            min_stock=request.form.get("min_stock", type=float),
+            unit_measure=request.form.get("unit_measure"),
+            location=request.form.get("location"),
+            approx_cost=request.form.get("approx_cost", type=float),
+            supplier_id=request.form.get("supplier_id") or None
+        )
+        db.session.add(new_mat)
+        db.session.commit()
+        flash("Material creado exitosamente", "success")
+        return redirect(url_for('inventory_materials'))
+
+    suppliers = Supplier.query.order_by(Supplier.name.asc()).all()
+    return render_template("inventory/material_form.html", suppliers=suppliers, material=None)
+
+@app.route("/inventory/materials/<int:material_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_material(material_id):
+    material = Material.query.get_or_404(material_id)
+    if request.method == "POST":
+        material.name = request.form.get("name")
+        material.category = request.form.get("category")
+        material.stock_quantity = request.form.get("stock_quantity", type=float)
+        material.min_stock = request.form.get("min_stock", type=float)
+        material.unit_measure = request.form.get("unit_measure")
+        material.location = request.form.get("location")
+        material.approx_cost = request.form.get("approx_cost", type=float)
+        material.supplier_id = request.form.get("supplier_id") or None
+        
+        db.session.commit()
+        flash("Material actualizado", "success")
+        return redirect(url_for('inventory_materials'))
+
+    suppliers = Supplier.query.order_by(Supplier.name.asc()).all()
+    return render_template("inventory/material_form.html", suppliers=suppliers, material=material)
+
+# ==============================================================================
+# INVENTORY: SUPPLIERS
+# ==============================================================================
+@app.route("/inventory/suppliers")
+@login_required
+def inventory_suppliers():
+    suppliers = Supplier.query.order_by(Supplier.name.asc()).all()
+    return render_template("inventory/suppliers.html", suppliers=suppliers)
+
+@app.route("/inventory/suppliers/new", methods=["GET", "POST"])
+@login_required
+def new_supplier():
+    if request.method == "POST":
+        new_sup = Supplier(
+            name=request.form.get("name"),
+            contact_info=request.form.get("contact_info"),
+            phone=request.form.get("phone"),
+            email=request.form.get("email"),
+            address=request.form.get("address")
+        )
+        db.session.add(new_sup)
+        db.session.commit()
+        flash("Proveedor creado exitosamente.", "success")
+        return redirect(url_for('inventory_suppliers'))
+    
+    return render_template("inventory/supplier_form.html", supplier=None)
+
+@app.route("/inventory/suppliers/<int:supplier_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_supplier(supplier_id):
+    supplier = Supplier.query.get_or_404(supplier_id)
+    if request.method == "POST":
+        supplier.name = request.form.get("name")
+        supplier.contact_info = request.form.get("contact_info")
+        supplier.phone = request.form.get("phone")
+        supplier.email = request.form.get("email")
+        supplier.address = request.form.get("address")
+        
+        db.session.commit()
+        flash("Proveedor actualizado exitosamente.", "success")
+        return redirect(url_for('inventory_suppliers'))
+    
+    return render_template("inventory/supplier_form.html", supplier=supplier)
+
+# ==============================================================================
+# INVENTORY: MOVEMENTS
+# ==============================================================================
+@app.route("/inventory/movements", methods=["GET", "POST"])
+@login_required
+def inventory_movements():
+    if request.method == "POST":
+        material_id = request.form.get("material_id")
+        movement_type = request.form.get("movement_type")
+        quantity = request.form.get("quantity", type=float)
+        reason = request.form.get("reason")
+        
+        if not all([material_id, movement_type, quantity, reason]):
+            flash("Todos los campos para el movimiento son obligatorios.", "danger")
+            return redirect(url_for('inventory_movements'))
+            
+        material = Material.query.get_or_404(material_id)
+        
+        # Guardar en log de movimientos
+        new_movement = InventoryMovement(
+            material_id=material_id,
+            movement_type=movement_type,
+            quantity=quantity,
+            reason=reason
+        )
+        db.session.add(new_movement)
+        
+        # Afectar el stock directamente
+        if movement_type == 'Entrada':
+            material.stock_quantity += quantity
+        elif movement_type == 'Salida':
+            material.stock_quantity -= quantity
+            
+        db.session.commit()
+        flash("Movimiento de inventario registrado", "success")
+        return redirect(url_for('inventory_movements'))
+
+    movements = InventoryMovement.query.order_by(InventoryMovement.created_at.desc()).limit(100).all()
+    materials = Material.query.order_by(Material.name.asc()).all()
+    return render_template("inventory/movements.html", movements=movements, materials=materials)
+
+# ==============================================================================
+# INVENTORY: PURCHASES
+# ==============================================================================
+@app.route("/inventory/purchases")
+@login_required
+def inventory_purchases():
+    purchases = Purchase.query.order_by(Purchase.created_at.desc()).all()
+    return render_template("inventory/purchases.html", purchases=purchases)
+
+@app.route("/inventory/purchases/new", methods=["GET", "POST"])
+@login_required
+def new_purchase():
+    if request.method == "POST":
+        supplier_id = request.form.get("supplier_id")
+        material_ids = request.form.getlist("material_id[]")
+        quantities = request.form.getlist("quantity[]")
+        unit_costs = request.form.getlist("unit_cost[]")
+        status = request.form.get("status", "Pendiente")
+        
+        purchase = Purchase(supplier_id=supplier_id, status=status)
+        db.session.add(purchase)
+        db.session.flush() # get ID
+        
+        total_amount = 0.0
+        
+        for i in range(len(material_ids)):
+            if material_ids[i] and quantities[i] and unit_costs[i]:
+                mat_id = int(material_ids[i])
+                qty = float(quantities[i])
+                cost = float(unit_costs[i])
+                
+                item = PurchaseItem(
+                    purchase_id=purchase.id,
+                    material_id=mat_id,
+                    quantity=qty,
+                    unit_cost=cost
+                )
+                db.session.add(item)
+                
+                item_total = qty * cost
+                total_amount += item_total
+                
+                # Si se marca como Recibida desde la creación, inyectar el movimiento
+                if status == "Recibida":
+                    movement = InventoryMovement(
+                        material_id=mat_id,
+                        movement_type="Entrada",
+                        quantity=qty,
+                        reason=f"Compra #{purchase.id}"
+                    )
+                    db.session.add(movement)
+                    
+                    material = Material.query.get(mat_id)
+                    if material:
+                        material.stock_quantity += qty
+                        
+        purchase.total_amount = total_amount
+        db.session.commit()
+        
+        flash("Compra registrada correctamente.", "success")
+        return redirect(url_for('inventory_purchases'))
+        
+    suppliers = Supplier.query.order_by(Supplier.name.asc()).all()
+    materials = Material.query.order_by(Material.name.asc()).all()
+    return render_template("inventory/purchase_form.html", suppliers=suppliers, materials=materials)
+
+@app.route("/inventory/purchases/<int:purchase_id>/receive", methods=["POST"])
+@login_required
+def receive_purchase(purchase_id):
+    purchase = Purchase.query.get_or_404(purchase_id)
+    if purchase.status == "Pendiente":
+        purchase.status = "Recibida"
+        
+        for item in purchase.items:
+            movement = InventoryMovement(
+                material_id=item.material_id,
+                movement_type="Entrada",
+                quantity=item.quantity,
+                reason=f"Recepción de Compra #{purchase.id}"
+            )
+            db.session.add(movement)
+            
+            material = Material.query.get(item.material_id)
+            if material:
+                material.stock_quantity += item.quantity
+                
+        db.session.commit()
+        flash("Compra marcada como recibida y stock actualizado.", "success")
+    else:
+        flash("La compra ya había sido recibida.", "info")
+        
+    return redirect(url_for('inventory_purchases'))
 
 @app.route("/customers")
 @login_required
@@ -99,8 +369,7 @@ def customers_index():
 @app.route("/customers/new", methods=["GET", "POST"])
 @login_required
 def new_customer():
-    from app.models.customer import Customer
-    
+        
     if request.method == "POST":
         name = request.form.get('name')
         email = request.form.get('email')
@@ -135,7 +404,6 @@ def new_customer():
 @app.route("/customers/<int:customer_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_customer(customer_id):
-    from app.models.customer import Customer
     
     customer = Customer.query.get_or_404(customer_id)
     
@@ -167,8 +435,6 @@ def edit_customer(customer_id):
 @app.route("/customers/<int:customer_id>/delete", methods=["POST"])
 @login_required
 def delete_customer(customer_id):
-    from app.models.customer import Customer
-    from app.models.order import Order
     
     customer = Customer.query.get_or_404(customer_id)
     
@@ -186,17 +452,12 @@ def delete_customer(customer_id):
 @app.route("/orders")
 @login_required
 def orders_index():
-    from app.models.order import Order
     orders = Order.query.order_by(Order.created_at.desc()).all()
     return render_template("orders/index.html", orders=orders)
 
 @app.route("/orders/new", methods=["GET", "POST"])
 @login_required
 def new_order():
-    from app.models.customer import Customer
-    from app.models.product import Product
-    from app.models.order import Order, OrderItem
-    from datetime import datetime
     
     if request.method == "POST":
         customer_id = request.form.get('customer_id')
@@ -215,6 +476,12 @@ def new_order():
         discount_amount_str = request.form.get('discount_amount')
         discount_amount = float(discount_amount_str) if discount_amount_str else 0.0
         
+        # Financial fields
+        advance_payment_str = request.form.get('advance_payment')
+        advance_payment = float(advance_payment_str) if advance_payment_str else 0.0
+        payment_method = request.form.get('payment_method')
+        payment_status = request.form.get('payment_status') or 'Pendiente de pago'
+        
         # We start with 0, we'll accumulate throughout the loop
         total_amount = 0.0
         
@@ -226,7 +493,10 @@ def new_order():
             has_design=has_design,
             delivery_date=delivery_date,
             total_amount=0.0, # Will be updated after saving items
-            status='Pendiente'
+            status='Pendiente',
+            advance_payment=advance_payment,
+            payment_method=payment_method,
+            payment_status=payment_status
         )
         db.session.add(new_order)
         db.session.flush() # Get the new_order.id
@@ -276,9 +546,35 @@ def new_order():
             )
             db.session.add(new_item)
             
+            # --- Inventory Auto-Discount Logic ---
+            if product.material_id:
+                material = db.session.get(Material, product.material_id)
+                if material:
+                    # Calculate quantity to deduct
+                    deduction_qty = 0.0
+                    if product.unit_measure in ['m2', 'metro lineal'] and w and h:
+                        area = w * h
+                        deduction_qty = area * qty
+                    else:
+                        deduction_qty = qty
+                        
+                    # Deduct from stock
+                    material.stock_quantity -= deduction_qty
+                    
+                    # Create Movement log
+                    movement = InventoryMovement(
+                        material_id=material.id,
+                        movement_type="Salida",
+                        quantity=deduction_qty,
+                        reason=f"Uso en pedido #{new_order.id}"
+                    )
+                    db.session.add(movement)
+            # -----------------------------------
+            
         new_order.subtotal_amount = total_amount
         new_order.discount_amount = discount_amount
         new_order.total_amount = total_amount - discount_amount
+        new_order.tax_amount = 0.0  # TODO: Implement if global IVA checkbox added later
         db.session.commit()
         
         flash('Pedido creado exitosamente con múltiples productos.', 'success')
@@ -294,11 +590,6 @@ def new_order():
 @app.route("/orders/<int:order_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_order(order_id):
-    from app.models.customer import Customer
-    from app.models.product import Product
-    from app.models.order import Order, OrderItem
-    from datetime import datetime
-
     order = Order.query.get_or_404(order_id)
     order_items = OrderItem.query.filter_by(order_id=order.id).all()
 
@@ -326,6 +617,12 @@ def edit_order(order_id):
         
         discount_amount_str = request.form.get('discount_amount')
         discount_amount = float(discount_amount_str) if discount_amount_str else 0.0
+        
+        # Financial fields
+        advance_payment_str = request.form.get('advance_payment')
+        order.advance_payment = float(advance_payment_str) if advance_payment_str else 0.0
+        order.payment_method = request.form.get('payment_method')
+        order.payment_status = request.form.get('payment_status') or 'Pendiente de pago'
         
         # For simplicity in editing multiple items, we wipe existing items and recreate them
         OrderItem.query.filter_by(order_id=order.id).delete()
@@ -377,9 +674,35 @@ def edit_order(order_id):
             )
             db.session.add(new_item)
             
+            # --- Inventory Auto-Discount Logic ---
+            if product.material_id:
+                material = db.session.get(Material, product.material_id)
+                if material:
+                    # Calculate quantity to deduct
+                    deduction_qty = 0.0
+                    if product.unit_measure in ['m2', 'metro lineal'] and w and h:
+                        area = w * h
+                        deduction_qty = area * qty
+                    else:
+                        deduction_qty = qty
+                        
+                    # Deduct from stock
+                    material.stock_quantity -= deduction_qty
+                    
+                    # Create Movement log
+                    movement = InventoryMovement(
+                        material_id=material.id,
+                        movement_type="Salida",
+                        quantity=deduction_qty,
+                        reason=f"Uso en pedido editado #{order.id}"
+                    )
+                    db.session.add(movement)
+            # -----------------------------------
+            
         order.subtotal_amount = total_amount
         order.discount_amount = discount_amount
         order.total_amount = total_amount - discount_amount
+        order.tax_amount = 0.0
         db.session.commit()
         
         flash('Pedido actualizado correctamente.', 'success')
@@ -424,7 +747,6 @@ def products_index():
 @app.route("/products/new", methods=["GET", "POST"])
 @login_required
 def new_product():
-    from app.models.product import Product
     
     if request.method == "POST":
         code = request.form.get('code')
@@ -479,7 +801,6 @@ def new_product():
 @app.route("/products/<int:product_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_product(product_id):
-    from app.models.product import Product
     
     product = Product.query.get_or_404(product_id)
     
@@ -518,8 +839,6 @@ def edit_product(product_id):
 @app.route("/products/<int:product_id>/delete", methods=["POST"])
 @login_required
 def delete_product(product_id):
-    from app.models.product import Product
-    from app.models.order import OrderItem
     
     product = Product.query.get_or_404(product_id)
     

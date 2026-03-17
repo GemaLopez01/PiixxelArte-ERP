@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1><i class="fas fa-shopping-cart"></i> Orden de Compra</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('inventory_purchases') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Volver a Compras</a>
+    </div>
+</div>
+
+<div class="card">
+    <form method="POST" class="modern-form">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Proveedor <span class="required">*</span></label>
+                <select name="supplier_id" class="form-control" required>
+                    <option value="">Seleccione un Proveedor...</option>
+                    {% for sp in suppliers %}
+                    <option value="{{ sp.id }}">{{ sp.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Estado Inicial de la Orden <span class="required">*</span></label>
+                <select name="status" class="form-control" required>
+                    <option value="Pendiente">Pendiente (Aun no recibida)</option>
+                    <option value="Recibida">Recibida (Ingresar al stock ahora)</option>
+                </select>
+                <small class="form-text text-muted">Si marcas "Recibida", el sistema registrará los materiales en el inventario de forma inmediata al guardar.</small>
+            </div>
+        </div>
+
+        <h3 class="mt-4"><i class="fas fa-list"></i> Productos/Materiales a Comprar</h3>
+        <hr>
+        
+        <div class="table-responsive">
+            <table class="modern-table" id="purchaseItemsTable">
+                <thead>
+                    <tr>
+                        <th style="width: 40%">Material</th>
+                        <th style="width: 20%">Cantidad (Unidades)</th>
+                        <th style="width: 20%">Costo Unitario</th>
+                        <th style="width: 15%">Costo Total</th>
+                        <th style="width: 5%">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="item-row">
+                        <td>
+                            <select name="material_id[]" class="form-control material-select" required>
+                                <option value="">Seleccionar Material...</option>
+                                {% for mat in materials %}
+                                <option value="{{ mat.id }}" data-cost="{{ mat.approx_cost }}">{{ mat.name }} ({{ mat.unit_measure }})</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" name="quantity[]" class="form-control item-qty" value="1" required min="0.01">
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" name="unit_cost[]" class="form-control item-cost" value="0.00" required>
+                        </td>
+                        <td>
+                            <span class="item-subtotal-display">$0.00</span>
+                        </td>
+                        <td>
+                            <button type="button" class="btn-icon btn-danger remove-item-btn" title="Eliminar"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="3" class="text-right align-middle"><strong>Total de Orden:</strong></th>
+                        <th colspan="2" class="align-middle">
+                            <strong id="purchaseTotalDisplay" style="font-size: 1.2rem; color: #2ecc71;">$0.00</strong>
+                            <input type="hidden" name="total_amount" id="purchaseTotalInput" value="0">
+                        </th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <button type="button" id="addItemBtn" class="btn btn-secondary mt-3"><i class="fas fa-plus"></i> Añadir Material</button>
+
+        <div class="form-actions mt-4">
+            <button type="submit" class="btn btn-primary btn-large">
+                <i class="fas fa-save"></i> Procesar Orden de Compra
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tableBody = document.querySelector('#purchaseItemsTable tbody');
+    const addItemBtn = document.getElementById('addItemBtn');
+    
+    // Función para calcular fila
+    function calculateRow(row) {
+        const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+        const cost = parseFloat(row.querySelector('.item-cost').value) || 0;
+        const subtotal = qty * cost;
+        
+        row.querySelector('.item-subtotal-display').textContent = '$' + subtotal.toFixed(2);
+        return subtotal;
+    }
+    
+    // Función para calcular Total
+    function calculateTotal() {
+        let total = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+            total += calculateRow(row);
+        });
+        
+        document.getElementById('purchaseTotalDisplay').textContent = '$' + total.toFixed(2);
+        document.getElementById('purchaseTotalInput').value = total.toFixed(2);
+    }
+    
+    // Al cambiar precio o cantidad
+    document.getElementById('purchaseItemsTable').addEventListener('input', function(e) {
+        if(e.target.classList.contains('item-qty') || e.target.classList.contains('item-cost')) {
+            calculateTotal();
+        }
+    });
+
+    // Al seleccionar material, autocompleta el costo aproximado si existe
+    document.getElementById('purchaseItemsTable').addEventListener('change', function(e) {
+        if(e.target.classList.contains('material-select')) {
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            const approxCost = selectedOption.getAttribute('data-cost');
+            if(approxCost && approxCost > 0) {
+                const row = e.target.closest('tr');
+                row.querySelector('.item-cost').value = parseFloat(approxCost).toFixed(2);
+                calculateTotal();
+            }
+        }
+    });
+    
+    // Añadir Fila
+    addItemBtn.addEventListener('click', function() {
+        // Clonar la primera fila
+        const firstRow = document.querySelector('.item-row');
+        const newRow = firstRow.cloneNode(true);
+        
+        // Limpiar valores
+        newRow.querySelector('.material-select').selectedIndex = 0;
+        newRow.querySelector('.item-qty').value = "1";
+        newRow.querySelector('.item-cost').value = "0.00";
+        newRow.querySelector('.item-subtotal-display').textContent = "$0.00";
+        
+        tableBody.appendChild(newRow);
+        calculateTotal();
+    });
+    
+    // Eliminar Fila (delegación de eventos)
+    document.getElementById('purchaseItemsTable').addEventListener('click', function(e) {
+        // Find closest button with remove class
+        const btn = e.target.closest('.remove-item-btn');
+        if(btn) {
+            if(document.querySelectorAll('.item-row').length > 1) {
+                btn.closest('tr').remove();
+                calculateTotal();
+            } else {
+                alert("La orden de compra debe tener al menos un material.");
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

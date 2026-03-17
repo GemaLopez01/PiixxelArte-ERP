@@ -107,12 +107,39 @@
             </table>
         </div>
 
-        <!-- Global Discount -->
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 24px;">
-            <div style="width: 300px; padding: 16px; background: #F8FAFC; border: 1px solid var(--border-light); border-radius: 8px;">
-                <label for="discount_amount" style="font-weight: 600; font-size: 0.95rem; color: #b91c1c;">Descuento Extra Global ($)</label>
+        <!-- Financial Fields -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 24px;">
+            <!-- Descuento -->
+            <div style="padding: 16px; background: #F8FAFC; border: 1px solid var(--border-light); border-radius: 8px;">
+                <label for="discount_amount" style="font-weight: 600; font-size: 0.95rem; color: #b91c1c;">Descuento Global ($)</label>
                 <input type="number" step="0.01" min="0" class="form-control" style="padding: 10px; font-size: 1.1rem; text-align: right;" id="discount_amount" name="discount_amount" placeholder="0.00">
-                <small style="display: block; margin-top: 4px; color: var(--text-secondary); text-align: right;">(Descuento manual al total del pedido)</small>
+            </div>
+            
+            <!-- Anticipo -->
+            <div style="padding: 16px; background: #F8FAFC; border: 1px solid var(--border-light); border-radius: 8px;">
+                <label for="advance_payment" style="font-weight: 600; font-size: 0.95rem; color: #15803d;">Anticipo ($)</label>
+                <input type="number" step="0.01" min="0" class="form-control" style="padding: 10px; font-size: 1.1rem; text-align: right;" id="advance_payment" name="advance_payment" placeholder="0.00">
+            </div>
+
+            <!-- Método de Pago -->
+            <div style="padding: 16px; background: #F8FAFC; border: 1px solid var(--border-light); border-radius: 8px;">
+                <label for="payment_method" style="font-weight: 600; font-size: 0.95rem;">Método de Pago</label>
+                <select class="form-control" style="padding: 10px; font-size: 1.1rem;" id="payment_method" name="payment_method">
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="" selected>Por definir</option>
+                </select>
+            </div>
+
+            <!-- Estado de Pago -->
+            <div style="padding: 16px; background: #F8FAFC; border: 1px solid var(--border-light); border-radius: 8px;">
+                <label for="payment_status" style="font-weight: 600; font-size: 0.95rem;">Estado de Pago</label>
+                <select class="form-control" style="padding: 10px; font-size: 1.1rem;" id="payment_status" name="payment_status">
+                    <option value="Pendiente de pago" selected>Pendiente de pago</option>
+                    <option value="Parcial">Parcial</option>
+                    <option value="Pagado">Pagado</option>
+                </select>
             </div>
         </div>
 
@@ -224,7 +251,34 @@
     }
 
     function calculateTotal() {
-        // Optional JS to display running total in UI if requested
+        // Compute subtotal from all rows
+        let sumSubtotal = 0;
+        const subtotalCells = document.querySelectorAll('.row-subtotal');
+        subtotalCells.forEach(cell => {
+            let val = parseFloat(cell.innerText.replace('$', ''));
+            if (!isNaN(val)) sumSubtotal += val;
+        });
+
+        const discountInput = document.getElementById('discount_amount');
+        let discount = parseFloat(discountInput.value) || 0;
+        
+        const advanceInput = document.getElementById('advance_payment');
+        let advance = parseFloat(advanceInput.value) || 0;
+
+        let total = sumSubtotal - discount;
+        if (total < 0) total = 0;
+
+        let saldo = total - advance;
+        
+        // Optional: Update a UI display element if you add one later.
+        // For now, these values just correctly reflect the inputs dynamically.
     }
+
+    // Attach listener to discount & advance so calculations trigger when they change
+    document.addEventListener("DOMContentLoaded", function() {
+        document.getElementById('discount_amount').addEventListener('input', calculateTotal);
+        document.getElementById('advance_payment').addEventListener('input', calculateTotal);
+    });
+
 </script>
 {% endblock %}

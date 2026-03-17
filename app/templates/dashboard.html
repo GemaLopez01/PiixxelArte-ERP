@@ -53,13 +53,35 @@
 
     <div class="metric-card payment">
         <div class="metric-header">
-            <span class="metric-title">Pagos Pendientes</span>
+            <span class="metric-title">Ventas Totales</span>
+            <div class="metric-icon">
+                <i class="fa-solid fa-sack-dollar"></i>
+            </div>
+        </div>
+        <div class="metric-value">${{ "%.2f"|format(metrics.total_sales) }}</div>
+        <div class="metric-subtitle">Sumatoria histórica</div>
+    </div>
+
+    <div class="metric-card payment">
+        <div class="metric-header">
+            <span class="metric-title">Anticipos / Pagado</span>
             <div class="metric-icon">
                 <i class="fa-solid fa-hand-holding-dollar"></i>
             </div>
         </div>
-        <div class="metric-value">{{ metrics.pending_payments }}</div>
-        <div class="metric-subtitle">Facturas o anticipos faltantes</div>
+        <div class="metric-value">${{ "%.2f"|format(metrics.total_advances) }}</div>
+        <div class="metric-subtitle">Dinero ingresado</div>
+    </div>
+
+    <div class="metric-card warning">
+        <div class="metric-header">
+            <span class="metric-title">Saldo Pendiente</span>
+            <div class="metric-icon">
+                <i class="fa-solid fa-file-invoice-dollar"></i>
+            </div>
+        </div>
+        <div class="metric-value">${{ "%.2f"|format(metrics.pending_balance) }}</div>
+        <div class="metric-subtitle">Por cobrar ({{ metrics.pending_payments }} notas)</div>
     </div>
     
     <div class="metric-card today">
@@ -168,5 +190,70 @@
         </ul>
     </div>
 </div>
+</div>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Inject server-rendered JSON data safely
+    const statusDataRaw = {{ status_dict | tojson | safe }};
+    const methodsDataRaw = {{ methods_dict | tojson | safe }};
+    
+    // Status Chart (Doughnut)
+    const ctxStatus = document.getElementById('statusChart').getContext('2d');
+    new Chart(ctxStatus, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(statusDataRaw),
+            datasets: [{
+                data: Object.values(statusDataRaw),
+                backgroundColor: [
+                    '#10B981', // Pagado (Green)
+                    '#F59E0B', // Parcial (Yellow/Orange)
+                    '#EF4444'  // Pendiente (Red)
+                ],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+
+    // Methods Chart (Bar)
+    const ctxMethods = document.getElementById('methodsChart').getContext('2d');
+    new Chart(ctxMethods, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(methodsDataRaw),
+            datasets: [{
+                label: 'Cantidad de Operaciones',
+                data: Object.values(methodsDataRaw),
+                backgroundColor: '#3B82F6', // Blue
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0 }
+                }
+            }
+        }
+    });
+});
+</script>
 
 {% endblock %}

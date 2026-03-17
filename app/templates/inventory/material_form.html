@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1><i class="fas fa-box-open"></i> {% if material %}Editar Material{% else %}Nuevo Material{% endif %}</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('inventory_materials') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Volver</a>
+    </div>
+</div>
+
+<div class="card">
+    <form method="POST" class="modern-form">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Nombre del Material <span class="required">*</span></label>
+                <input type="text" name="name" value="{{ material.name if material else '' }}" required class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label>Categoría</label>
+                <select name="category" class="form-control">
+                    <option value="Sustratos Flexibles" {% if material and material.category == 'Sustratos Flexibles' %}selected{% endif %}>Sustratos Flexibles (Lonas, Viniles)</option>
+                    <option value="Sustratos Rígidos" {% if material and material.category == 'Sustratos Rígidos' %}selected{% endif %}>Sustratos Rígidos (Coroplast, Trovicel)</option>
+                    <option value="Consumibles" {% if material and material.category == 'Consumibles' %}selected{% endif %}>Consumibles (Tintas, Promotores)</option>
+                    <option value="Herrajes/Estructuras" {% if material and material.category == 'Herrajes/Estructuras' %}selected{% endif %}>Herrajes y Estructuras</option>
+                    <option value="Otros" {% if material and material.category == 'Otros' %}selected{% endif %}>Otros</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Stock Actual <span class="required">*</span></label>
+                <input type="number" step="0.01" name="stock_quantity" value="{{ material.stock_quantity if material else '0' }}" required class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label>Stock Mínimo (Alerta) <span class="required">*</span></label>
+                <input type="number" step="0.01" name="min_stock" value="{{ material.min_stock if material else '0' }}" required class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label>Unidad de Medida</label>
+                <input type="text" name="unit_measure" value="{{ material.unit_measure if material else 'Metros Cuadrados (m2)' }}" required class="form-control" placeholder="Ej: m2, metros, litros, piezas">
+            </div>
+
+            <div class="form-group">
+                <label>Ubicación (Pasillo/Estante)</label>
+                <input type="text" name="location" value="{{ material.location if material else '' }}" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label>Costo Aproximado (Unitario)</label>
+                <input type="number" step="0.01" name="approx_cost" value="{{ material.approx_cost if material else '0' }}" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label>Proveedor Principal</label>
+                <select name="supplier_id" class="form-control">
+                    <option value="">Selecciona un proveedor (Opcional)</option>
+                    {% for sp in suppliers %}
+                    <option value="{{ sp.id }}" {% if material and material.supplier_id == sp.id %}selected{% endif %}>{{ sp.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-actions mt-4">
+            <button type="submit" class="btn btn-primary btn-large">
+                <i class="fas fa-save"></i> Guardar Material
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -41,17 +41,61 @@
                     <i class="fa-solid fa-box-open"></i> Productos
                 </a>
             </li>
-            <li>
-                <a href="#">
-                    <i class="fa-solid fa-warehouse"></i> Inventario
+            <li class="nav-item has-submenu">
+                <a href="#" class="{% if 'inventory' in request.endpoint %}active{% endif %}" onclick="this.parentElement.classList.toggle('open'); return false;">
+                    <i class="fa-solid fa-warehouse"></i> Inventario <i class="fas fa-chevron-down" style="float: right; margin-top: 4px; font-size: 0.8rem;"></i>
                 </a>
+                <ul class="submenu">
+                    <li><a href="{{ url_for('inventory_materials') }}" class="{% if 'material' in request.endpoint %}active{% endif %}">Materiales</a></li>
+                    <li><a href="{{ url_for('inventory_movements') }}" class="{% if 'movement' in request.endpoint %}active{% endif %}">Movimientos</a></li>
+                    <li><a href="{{ url_for('inventory_purchases') }}" class="{% if 'purchase' in request.endpoint %}active{% endif %}">Compras</a></li>
+                    <li><a href="{{ url_for('inventory_suppliers') }}" class="{% if 'supplier' in request.endpoint %}active{% endif %}">Proveedores</a></li>
+                </ul>
             </li>
             <li>
                 <a href="#">
-                    <i class="fa-solid fa-file-invoice-dollar"></i> Finanzas
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Finanzas (Próximamente)
                 </a>
             </li>
         </ul>
+        <style>
+            .submenu {
+                display: none;
+                list-style: none;
+                padding-left: 2rem;
+                margin-top: 0.5rem;
+            }
+            .has-submenu.open .submenu {
+                display: block;
+            }
+            .submenu a {
+                padding: 0.5rem 1rem !important;
+                font-size: 0.9rem;
+            }
+            
+            /* Topbar alert */
+            .topbar-left {
+                display: flex;
+                align-items: center;
+            }
+            .stock-alert-btn {
+                position: relative;
+                color: #2c3e50;
+                font-size: 1.2rem;
+                text-decoration: none;
+            }
+            .stock-alert-btn:hover {
+                color: #e74c3c;
+            }
+            .header-badge {
+                position: absolute;
+                top: -8px;
+                right: -10px;
+                font-size: 0.65rem;
+                padding: 3px 6px;
+                border-radius: 50%;
+            }
+        </style>
     </aside>
 
     <!-- Main Content Wrapper -->
@@ -59,8 +103,17 @@
         
         <!-- Top Navigation -->
         <header class="topbar">
-            <!-- Optional Search/Breadcrumbs can go here -->
-            <div></div> 
+            <!-- Low Stock Alerts Indicator -->
+            <div class="topbar-left">
+                {% if low_stock_alerts_count %}
+                    {% if low_stock_alerts_count > 0 %}
+                    <a href="{{ url_for('inventory_materials') }}" class="stock-alert-btn" title="Hay materiales con bajo stock">
+                        <i class="fa-solid fa-bell"></i>
+                        <span class="badge badge-danger header-badge">{{ low_stock_alerts_count }}</span>
+                    </a>
+                    {% endif %}
+                {% endif %}
+            </div> 
 
             <div class="user-profile">
                 <span class="role-badge">{{ current_user.role }}</span>

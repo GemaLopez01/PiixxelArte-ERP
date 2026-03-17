@@ -22,6 +22,9 @@ class Product(db.Model):
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Inventory Integration
+    material_id = db.Column(db.Integer, db.ForeignKey('materials.id'), nullable=True)
+
     # Relationships
     order_items = db.relationship('OrderItem', backref='product', lazy=True)
 
