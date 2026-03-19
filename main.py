@@ -70,10 +70,24 @@ def inject_alerts():
     if current_user.is_authenticated:
         try:
             alerts_count = Material.query.filter(Material.stock_quantity <= Material.min_stock).count()
-            return dict(low_stock_alerts_count=alerts_count)
-        except Exception:
-            return dict(low_stock_alerts_count=0)
-    return dict(low_stock_alerts_count=0)
+            # Also count pending/producing items that are on demand
+            from app.models.order import Order, OrderItem
+            from app.models.product import Product
+            
+            on_demand_items_count = db.session.query(OrderItem).join(Order).join(Product).filter(
+                Product.is_on_demand == True,
+                Order.status.in_(['Pendiente', 'Producción'])
+            ).count()
+            
+            total_alerts = alerts_count + on_demand_items_count
+            return dict(
+                low_stock_alerts_count=alerts_count,
+                on_demand_alerts_count=on_demand_items_count,
+                total_alerts_count=total_alerts
+            )
+        except Exception as e:
+            return dict(low_stock_alerts_count=0, on_demand_alerts_count=0, total_alerts_count=0)
+    return dict(low_stock_alerts_count=0, on_demand_alerts_count=0, total_alerts_count=0)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -152,13 +166,36 @@ def dashboard():
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     date_string = f"{dias[today.weekday()]} {today.day} de {meses[today.month - 1]}"
 
+    # Monthly sales for current year
+    from sqlalchemy import extract
+    current_year = today.year
+    monthly_sales_data = db.session.query(
+        extract('month', Order.created_at).label('month'),
+        db.func.sum(Order.total_amount).label('total')
+    ).filter(
+        extract('year', Order.created_at) == current_year,
+        Order.status != 'Cancelado' # Optional guard
+    ).group_by(
+        extract('month', Order.created_at)
+    ).all()
+    
+    monthly_sales_dict = {mes: 0.0 for mes in meses}
+    for row in monthly_sales_data:
+        try:
+            month_idx = int(row.month) - 1
+            if 0 <= month_idx < 12:
+                monthly_sales_dict[meses[month_idx]] = float(row.total or 0.0)
+        except (ValueError, TypeError):
+            pass
+
     return render_template(
         "dashboard.html", 
         metrics=metrics, 
         recent_orders=recent_orders,
         date_string=date_string,
         methods_dict=methods_dict,
-        status_dict=status_dict
+        status_dict=status_dict,
+        monthly_sales_dict=monthly_sales_dict
     )
 
 # ==============================================================================
@@ -170,7 +207,19 @@ def inventory_materials():
     materials = Material.query.order_by(Material.name.asc()).all()
     # Identificar aquellos que requieren reabastecimiento
     alerts_count = Material.query.filter(Material.stock_quantity <= Material.min_stock).count()
-    return render_template("inventory/materials.html", materials=materials, alerts_count=alerts_count)
+    
+    # Obtener productos bajo demanda de pedidos activos
+    from app.models.order import Order, OrderItem
+    from app.models.product import Product
+    on_demand_items = db.session.query(OrderItem).join(Order).join(Product).filter(
+        Product.is_on_demand == True,
+        Order.status.in_(['Pendiente', 'Producción'])
+    ).all()
+
+    return render_template("inventory/materials.html", 
+                           materials=materials, 
+                           alerts_count=alerts_count,
+                           on_demand_items=on_demand_items)
 
 @app.route("/inventory/materials/new", methods=["GET", "POST"])
 @login_required
@@ -789,6 +838,7 @@ def new_product():
         base_price = request.form.get('base_price')
         unit_measure = request.form.get('unit_measure', 'Pieza')
         has_tax = request.form.get('has_tax') == 'on'
+        is_on_demand = request.form.get('is_on_demand') == 'on'
         
         min_qty_discount = request.form.get('min_qty_discount')
         discount_percentage = request.form.get('discount_percentage')
@@ -818,6 +868,7 @@ def new_product():
             base_price=float(base_price),
             unit_measure=unit_measure,
             has_tax=has_tax,
+            is_on_demand=is_on_demand,
             image_path=image_path,
             is_dynamic_pricing=is_dynamic,
             min_qty_discount=min_qty_discount,
@@ -845,6 +896,7 @@ def edit_product(product_id):
         product.base_price = float(request.form.get('base_price'))
         product.unit_measure = request.form.get('unit_measure', 'Pieza')
         product.has_tax = request.form.get('has_tax') == 'on'
+        product.is_on_demand = request.form.get('is_on_demand') == 'on'
         
         min_qty_discount = request.form.get('min_qty_discount')
         product.min_qty_discount = int(min_qty_discount) if min_qty_discount else None

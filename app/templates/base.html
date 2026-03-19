@@ -57,11 +57,17 @@
                     <li><a href="{{ url_for('inventory_suppliers') }}" class="{% if 'supplier' in request.endpoint %}active{% endif %}">Proveedores</a></li>
                 </ul>
             </li>
-            <li>
-                <a href="#">
-                    <i class="fa-solid fa-file-invoice-dollar"></i> Finanzas (Próximamente)
+            {% if current_user.role != 'Producción' %}
+            <li class="has-submenu {% if 'finance' in request.endpoint %}open{% endif %}">
+                <a href="#" class="{% if 'finance' in request.endpoint %}active{% endif %}" onclick="this.parentElement.classList.toggle('open'); return false;">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Finanzas <i class="fas fa-chevron-down" style="float: right; margin-top: 4px; font-size: 0.8rem;"></i>
                 </a>
+                <ul class="submenu">
+                    <li><a href="{{ url_for('finance_dashboard') }}" class="{% if request.endpoint == 'finance_dashboard' %}active{% endif %}">Resumen (Dashboard)</a></li>
+                    <li><a href="{{ url_for('finance_transactions') }}" class="{% if request.endpoint == 'finance_transactions' %}active{% endif %}">Transacciones (Caja)</a></li>
+                </ul>
             </li>
+            {% endif %}
         </ul>
         <style>
             .submenu {
@@ -108,15 +114,15 @@
         
         <!-- Top Navigation -->
         <header class="topbar">
-            <!-- Low Stock Alerts Indicator -->
+            <!-- Low Stock & On-Demand Alerts Indicator -->
             <div class="topbar-left">
-                {% if low_stock_alerts_count %}
-                    {% if low_stock_alerts_count > 0 %}
-                    <a href="{{ url_for('inventory_materials') }}" class="stock-alert-btn" title="Hay materiales con bajo stock">
+                {% if total_alerts_count and total_alerts_count > 0 %}
+                <div class="dropdown">
+                    <a href="{{ url_for('inventory_materials') }}" class="stock-alert-btn" title="Hay alertas de inventario (Bajo stock o Bajo Demanda)">
                         <i class="fa-solid fa-bell"></i>
-                        <span class="badge badge-danger header-badge">{{ low_stock_alerts_count }}</span>
+                        <span class="badge badge-danger header-badge">{{ total_alerts_count }}</span>
                     </a>
-                    {% endif %}
+                </div>
                 {% endif %}
             </div> 
 

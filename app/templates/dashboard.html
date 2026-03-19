@@ -109,6 +109,14 @@
 
 <!-- Charts Grid -->
 <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 20px;">
+    <!-- Monthly Sales Chart -->
+    {% if current_user.role != 'Producción' %}
+    <div class="section-card" style="grid-column: 1 / -1; min-height: 300px;">
+        <div class="section-header"><h2 class="section-title">Ventas Históricas del Año ({{ date_string.split(' ')[-1] }})</h2></div>
+        <div style="height: 250px; width: 100%;"><canvas id="monthlySalesChart"></canvas></div>
+    </div>
+    {% endif %}
+
     <div class="section-card" style="min-height: 250px;">
         <div class="section-header"><h2 class="section-title">Estado de Pagos</h2></div>
         <div style="height: 180px; width: 100%;"><canvas id="statusChart"></canvas></div>
@@ -121,6 +129,7 @@
 
 <script id="status-data" type="application/json">{{ status_dict | tojson | safe }}</script>
 <script id="methods-data" type="application/json">{{ methods_dict | tojson | safe }}</script>
+<script id="monthly-sales-data" type="application/json">{{ monthly_sales_dict | tojson | safe if monthly_sales_dict else '{}' }}</script>
 
 <!-- Main Grid for Tables and Info -->
 <div class="dashboard-grid">

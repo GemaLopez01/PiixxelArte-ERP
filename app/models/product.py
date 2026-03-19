@@ -11,6 +11,7 @@ class Product(db.Model):
     base_price = db.Column(db.Numeric(10, 2), nullable=False)
     unit_measure = db.Column(db.String(50), default='Pieza') # Pieza, Metro Lineal, M2 ...
     has_tax = db.Column(db.Boolean, default=False)
+    is_on_demand = db.Column(db.Boolean, default=False)
     image_path = db.Column(db.String(255), nullable=True)
     
     is_dynamic_pricing = db.Column(db.Boolean, default=False) # True for items sold by dimension

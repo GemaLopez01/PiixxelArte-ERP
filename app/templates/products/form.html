@@ -46,10 +46,13 @@
                 <input type="number" step="0.01" class="form-control" style="padding: 12px;" id="base_price" name="base_price" required min="0" value="{{ product.base_price if product else '' }}">
             </div>
 
-            <!-- Precio Mínimo -->
-            <div class="form-group mb-0">
-                <label for="min_price" style="font-weight: 600;" title="Aplica sólo para ventas por m2 o m. lineal">Precio Mín. ($)</label>
-                <input type="number" step="0.01" class="form-control" style="padding: 12px;" id="min_price" name="min_price" min="0" placeholder="Opcional" value="{{ product.min_price if product and product.min_price else '' }}">
+            <!-- Bajo Demanda -->
+            <div class="form-group mb-0" style="display: flex; flex-direction: column; justify-content: center;">
+                <label style="font-weight: 600; margin-bottom: 8px;">Carga / Alertas</label>
+                <label class="switch" style="display: inline-flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="is_on_demand" id="is_on_demand" style="width: 20px; height: 20px; margin-right: 12px;" {% if product and product.is_on_demand %}checked{% endif %}>
+                    <span style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">Bajo Demanda</span>
+                </label>
             </div>
 
             <!-- Unidad de Medida -->
@@ -72,6 +75,9 @@
                     <span style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">Aplicar 16%</span>
                 </label>
             </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr; gap: 20px; margin-bottom: 32px;">
             <!-- Precio mínimo por pieza -->
             <div class="form-group mb-0">
                 <label for="min_price" style="font-weight: 600;">Precio Mínimo de Venta ($) (Opcional)</label>

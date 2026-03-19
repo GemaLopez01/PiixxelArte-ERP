@@ -14,6 +14,18 @@
 </div>
 {% endif %}
 
+{% if on_demand_items and on_demand_items|length > 0 %}
+<div class="alert" style="background-color: #fff3cd; color: #856404; border-left: 4px solid #ffeeba; margin-bottom: 20px; padding: 15px; border-radius: 4px;">
+    <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 1.05rem;"><i class="fas fa-shopping-cart"></i> Requerimientos Bajo Demanda (Por Pedidos Activos)</h4>
+    <ul style="margin: 0; padding-left: 20px; font-size: 0.95rem;">
+        {% for item in on_demand_items %}
+        <li><strong>Falta conseguir:</strong> {{ item.quantity }} x {{ item.product.name }} (Para Pedido #{{ item.order.id }} - {{ item.order.title or 'Sin Título' }})</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+
 <div class="card">
     <div class="table-responsive">
         <table class="modern-table">

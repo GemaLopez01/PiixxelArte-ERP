@@ -62,4 +62,43 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
     }
+
+    const monthlySalesDataScript = document.getElementById('monthly-sales-data');
+    const monthlySalesDataRaw = monthlySalesDataScript ? JSON.parse(monthlySalesDataScript.textContent || '{}') : {};
+
+    const monthlySalesCanvas = document.getElementById('monthlySalesChart');
+    if (monthlySalesCanvas && Object.keys(monthlySalesDataRaw).length > 0) {
+        const ctxMonthly = monthlySalesCanvas.getContext('2d');
+        new Chart(ctxMonthly, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(monthlySalesDataRaw),
+                datasets: [{
+                    label: 'Ventas Mensuales ($)',
+                    data: Object.values(monthlySalesDataRaw),
+                    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                    borderColor: 'rgb(37, 99, 235)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 });
