@@ -436,6 +436,21 @@ def receive_purchase(purchase_id):
                 material.stock_quantity += item.quantity
                 
         db.session.commit()
+        
+        # --- Finance Integration: register an expense ---
+        from app.models.finance import Transaction
+        if purchase.total_amount and purchase.total_amount > 0:
+            tx = Transaction(
+                type="Egreso",
+                category="Compras de Material",
+                amount=purchase.total_amount,
+                description=f"Pago por recepción de Compra #{purchase.id}",
+                purchase_id=purchase.id
+            )
+            db.session.add(tx)
+            db.session.commit()
+        # ----------------------------------------------
+        
         flash("Compra marcada como recibida y stock actualizado.", "success")
     else:
         flash("La compra ya había sido recibida.", "info")
@@ -660,6 +675,21 @@ def new_order():
         new_order.tax_amount = 0.0  # TODO: Implement if global IVA checkbox added later
         db.session.commit()
         
+        # --- Finance Integration: register an advance as income ---
+        if new_order.advance_payment > 0:
+            from app.models.finance import Transaction
+            tx = Transaction(
+                type="Ingreso",
+                category="Anticipos",
+                amount=new_order.advance_payment,
+                description=f"Anticipo del Pedido #{new_order.id}",
+                payment_method=new_order.payment_method,
+                order_id=new_order.id
+            )
+            db.session.add(tx)
+            db.session.commit()
+        # ------------------------------------------------------------
+        
         flash('Pedido creado exitosamente con múltiples productos.', 'success')
         return redirect(url_for('orders_index'))
         
@@ -787,6 +817,26 @@ def edit_order(order_id):
         order.total_amount = total_amount - discount_amount
         order.tax_amount = 0.0
         db.session.commit()
+        
+        # --- Finance Integration: Update/Register advance ---
+        from app.models.finance import Transaction
+        
+        # Primero eliminamos cualquier asiento de anticipo anterior para este pedido
+        Transaction.query.filter_by(order_id=order.id, category='Anticipos').delete()
+        
+        if order.advance_payment > 0:
+            tx = Transaction(
+                type="Ingreso",
+                category="Anticipos",
+                amount=order.advance_payment,
+                description=f"Anticipo del Pedido #{order.id} (Actualizado)",
+                payment_method=order.payment_method,
+                order_id=order.id
+            )
+            db.session.add(tx)
+        
+        db.session.commit()
+        # --------------------------------------------------
         
         flash('Pedido actualizado correctamente.', 'success')
         return redirect(url_for('orders_index'))
@@ -944,6 +994,94 @@ def delete_product(product_id):
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+# ==============================================================================
+# FINANCE MODULE
+# ==============================================================================
+
+def get_current_month_range():
+    from datetime import date
+    import calendar
+    today = date.today()
+    first_day = date(today.year, today.month, 1)
+    last_day = date(today.year, today.month, calendar.monthrange(today.year, today.month)[1])
+    return first_day, last_day
+
+@app.route("/finance")
+@login_required
+def finance_dashboard():
+    from app.models.finance import Transaction
+    from sqlalchemy import func
+    
+    first_day, last_day = get_current_month_range()
+    
+    # Base query for the current month
+    month_transactions = Transaction.query.filter(
+        Transaction.date >= first_day,
+        Transaction.date <= last_day
+    )
+    
+    # Calculate totals
+    income_result = month_transactions.filter_by(type='Ingreso').with_entities(func.sum(Transaction.amount)).scalar()
+    total_income = float(income_result) if income_result else 0.0
+    
+    expense_result = month_transactions.filter_by(type='Egreso').with_entities(func.sum(Transaction.amount)).scalar()
+    total_expense = float(expense_result) if expense_result else 0.0
+    
+    net_profit = total_income - total_expense
+    
+    # Expenses by category for current month
+    expenses_by_category = db.session.query(
+        Transaction.category, func.sum(Transaction.amount)
+    ).filter(
+        Transaction.type == 'Egreso',
+        Transaction.date >= first_day,
+        Transaction.date <= last_day
+    ).group_by(Transaction.category).all()
+    
+    category_summary = {cat: float(amount) for cat, amount in expenses_by_category}
+    
+    # Recent transactions (all types)
+    recent_txs = Transaction.query.order_by(Transaction.date.desc()).limit(10).all()
+    
+    return render_template('finance/dashboard.html',
+                           total_income=total_income,
+                           total_expense=total_expense,
+                           net_profit=net_profit,
+                           category_summary=category_summary,
+                           recent_transactions=recent_txs)
+
+@app.route("/finance/transactions")
+@login_required
+def finance_transactions():
+    from app.models.finance import Transaction
+    transactions = Transaction.query.order_by(Transaction.date.desc()).all()
+    return render_template('finance/transactions.html', transactions=transactions)
+
+@app.route("/finance/expense/new", methods=["GET", "POST"])
+@login_required
+def finance_new_expense():
+    from app.models.finance import Transaction
+    if request.method == "POST":
+        amount = float(request.form.get("amount", 0))
+        category = request.form.get("category")
+        description = request.form.get("description")
+        payment_method = request.form.get("payment_method")
+        
+        new_tx = Transaction(
+            type="Egreso",
+            category=category,
+            amount=amount,
+            description=description,
+            payment_method=payment_method
+        )
+        db.session.add(new_tx)
+        db.session.commit()
+        
+        flash("Gasto registrado correctamente.", "success")
+        return redirect(url_for("finance_dashboard"))
+        
+    return render_template("finance/expense_form.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
