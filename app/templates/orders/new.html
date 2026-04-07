@@ -26,12 +26,30 @@
             <!-- Cliente -->
             <div class="form-group mb-0">
                 <label for="customer_id" style="font-weight: 600;">Cliente *</label>
-                <select class="form-control" style="padding: 12px;" id="customer_id" name="customer_id" required>
-                    <option value="" disabled selected>Seleccione un cliente</option>
-                    {% for customer in customers %}
-                        <option value="{{ customer.id }}">{{ customer.name }} {% if customer.business_name %}({{ customer.business_name }}){% endif %}</option>
-                    {% endfor %}
-                </select>
+                <div style="display: flex; gap: 10px;" id="customer_select_wrapper">
+                    <select class="form-control" style="padding: 12px; flex-grow: 1;" id="customer_id" name="customer_id" required>
+                        <option value="" disabled selected>Seleccione un cliente</option>
+                        {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.name }} {% if customer.business_name %}({{ customer.business_name }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" class="btn btn-secondary" onclick="toggleNewCustomer()" title="Registrar nuevo cliente rápido" style="padding: 0 15px; border-radius: 6px;">
+                        <i class="fa-solid fa-user-plus"></i> Nuevo
+                    </button>
+                </div>
+                
+                <!-- Quick Create Customer Form (Hidden initially) -->
+                <div id="new_customer_wrapper" style="display: none; background: #f8fafc; padding: 15px; border: 1px dashed #cbd5e1; border-radius: 6px; margin-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: bold; color: #0f172a;"><i class="fa-solid fa-user-plus"></i> Registrar Nuevo Cliente</span>
+                        <button type="button" class="btn btn-sm" onclick="toggleNewCustomer()" style="background: transparent; color: #ef4444; border: none; padding: 0;"><i class="fa-solid fa-times"></i> Cancelar</button>
+                    </div>
+                    <input type="text" class="form-control mb-2" id="new_customer_name" name="new_customer_name" placeholder="Nombre completo *" style="padding: 10px;">
+                    <input type="text" class="form-control mb-2" id="new_customer_phone" name="new_customer_phone" placeholder="Teléfono" style="padding: 10px;">
+                    <input type="text" class="form-control" id="new_customer_email" name="new_customer_email" placeholder="Correo electrónico" style="padding: 10px;">
+                </div>
+                <!-- Hidden logic input -->
+                <input type="hidden" name="is_new_customer" id="is_new_customer" value="0">
             </div>
         </div>
         
@@ -155,6 +173,28 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
+        // Toggle new customer logic
+        window.toggleNewCustomer = function() {
+            const isNew = document.getElementById('is_new_customer').value === '0';
+            if (isNew) {
+                document.getElementById('is_new_customer').value = '1';
+                document.getElementById('new_customer_wrapper').style.display = 'block';
+                document.getElementById('customer_id').disabled = true;
+                document.getElementById('customer_id').required = false;
+                document.getElementById('new_customer_name').required = true;
+            } else {
+                document.getElementById('is_new_customer').value = '0';
+                document.getElementById('new_customer_wrapper').style.display = 'none';
+                document.getElementById('customer_id').disabled = false;
+                document.getElementById('customer_id').required = true;
+                document.getElementById('new_customer_name').required = false;
+                // Clear the fields
+                document.getElementById('new_customer_name').value = '';
+                document.getElementById('new_customer_phone').value = '';
+                document.getElementById('new_customer_email').value = '';
+            }
+        };
+
         const tbody = document.getElementById("items-tbody");
         const addBtn = document.getElementById("add-item-btn");
 
