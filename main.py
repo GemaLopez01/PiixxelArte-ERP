@@ -630,9 +630,9 @@ def new_order():
             if not product:
                 continue
 
-            # Calculate effective price per piece based on dimensions and min_price
-            unit_price = product.calculate_unit_price(width=w, height=h)
-            subtotal = unit_price * qty
+            # Calculate effective price based on strategy
+            subtotal = product.calculate_price(qty=qty, width=w, height=h)
+            unit_price = (subtotal / qty) if qty > 0 else 0.0
 
             # Add implicit tax logic (if desired later, could accumulate here, assuming base_price includes tax or is subtotal) # TODO
             if product.has_tax:
@@ -795,9 +795,9 @@ def edit_order(order_id):
             if not product:
                 continue
 
-            # Calculate effective price per piece based on dimensions and min_price
-            unit_price = product.calculate_unit_price(width=w, height=h)
-            subtotal = unit_price * qty
+            # Calculate effective price based on strategy
+            subtotal = product.calculate_price(qty=qty, width=w, height=h)
+            unit_price = (subtotal / qty) if qty > 0 else 0.0
 
             # Add implicit tax logic (if desired later, could accumulate here, assuming base_price includes tax or is subtotal) # TODO
             if product.has_tax:
@@ -948,6 +948,10 @@ def new_product():
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 image_path = f'uploads/products/{filename}'
         
+        pricing_strategy = request.form.get('pricing_strategy') or 'standard'
+        block_increment = request.form.get('block_increment')
+        block_increment = float(block_increment) if block_increment else None
+        
         # dynamic pricing flag compatibility based on unit
         is_dynamic = unit_measure.lower() in ['m2', 'metro lineal']
         
@@ -963,7 +967,9 @@ def new_product():
             is_dynamic_pricing=is_dynamic,
             min_qty_discount=min_qty_discount,
             discount_percentage=discount_percentage,
-            min_price=min_price
+            min_price=min_price,
+            pricing_strategy=pricing_strategy,
+            block_increment=block_increment
         )
         db.session.add(new_prod)
         db.session.commit()
@@ -996,6 +1002,10 @@ def edit_product(product_id):
         
         min_price = request.form.get('min_price')
         product.min_price = float(min_price) if min_price else None
+        
+        product.pricing_strategy = request.form.get('pricing_strategy') or 'standard'
+        block_increment = request.form.get('block_increment')
+        product.block_increment = float(block_increment) if block_increment else None
         
         product.is_dynamic_pricing = product.unit_measure.lower() in ['m2', 'metro lineal']
         

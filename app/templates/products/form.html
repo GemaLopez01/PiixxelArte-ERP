@@ -87,6 +87,39 @@
             </div>
         </div>
 
+        <!-- Row 2.5: Estrategia de Precios -->
+        <h3 style="margin-top: 10px; margin-bottom: 20px; font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 5px;">Estrategia de Cálculo Múltiple (Avanzado)</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px;">
+            <div class="form-group mb-0">
+                <label for="pricing_strategy" style="font-weight: 600;">Regla de Costo</label>
+                <select class="form-control" style="padding: 12px;" id="pricing_strategy" name="pricing_strategy" onchange="toggleBlockIncrement()">
+                    <option value="standard" {% if not product or product.pricing_strategy == 'standard' %}selected{% endif %}>Estándar (Multiplicar por cantidad)</option>
+                    <option value="area_based" {% if product and (product.pricing_strategy == 'area_based' or (product.is_dynamic_pricing and product.pricing_strategy == 'standard')) %}selected{% endif %}>Por Área (Cálculo Metro Cuadrado)</option>
+                    <option value="formula_sellos" {% if product and product.pricing_strategy == 'formula_sellos' %}selected{% endif %}>Fórmula Sellos [(Base * 2) + 60]</option>
+                    <option value="tiered_blocks" {% if product and product.pricing_strategy == 'tiered_blocks' %}selected{% endif %}>Autoincremento por Bloques (Recetas)</option>
+                </select>
+                <small style="color: var(--text-secondary);">Elige el comportamiento al cotizar o agregar a nota.</small>
+            </div>
+            
+            <div class="form-group mb-0" id="block_increment_group" style="{% if not product or product.pricing_strategy != 'tiered_blocks' %}display: none;{% endif %}">
+                <label for="block_increment" style="font-weight: 600;">Incremento por Bloque ($)</label>
+                <input type="number" step="0.01" class="form-control" style="padding: 12px;" id="block_increment" name="block_increment" min="0" value="{{ product.block_increment if product and product.block_increment is not none else '' }}">
+                <small style="color: var(--text-secondary);">Dinero que se suma por cada unidad base extra (Ejem: 100 extra).</small>
+            </div>
+        </div>
+
+        <script>
+            function toggleBlockIncrement() {
+                var strategy = document.getElementById('pricing_strategy').value;
+                var blockGroup = document.getElementById('block_increment_group');
+                if (strategy === 'tiered_blocks') {
+                    blockGroup.style.display = 'block';
+                } else {
+                    blockGroup.style.display = 'none';
+                }
+            }
+        </script>
+
         <!-- Row 3: Descuentos Mayoreo -->
         <h3 style="margin-top: 30px; margin-bottom: 20px; font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 5px;">Descuentos por Mayoreo Automáticos (Opcional)</h3>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px;">
