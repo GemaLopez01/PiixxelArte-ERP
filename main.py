@@ -94,6 +94,21 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 
+from functools import wraps
+from flask import abort
+
+def roles_required(*roles):
+    """Decorator to ensure the current_user has one of the specified roles."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if current_user.role not in roles:
+                abort(403)
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
 @app.route("/", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
@@ -532,6 +547,7 @@ def edit_customer(customer_id):
 
 @app.route("/customers/<int:customer_id>/delete", methods=["POST"])
 @login_required
+@roles_required('Administrador', 'Ventas')
 def delete_customer(customer_id):
     
     customer = Customer.query.get_or_404(customer_id)
@@ -555,6 +571,7 @@ def orders_index():
 
 @app.route("/orders/new", methods=["GET", "POST"])
 @login_required
+@roles_required('Administrador', 'Ventas')
 def new_order():
     
     if request.method == "POST":
@@ -707,6 +724,15 @@ def edit_order(order_id):
     order_items = OrderItem.query.filter_by(order_id=order.id).all()
 
     if request.method == "POST":
+        if current_user.role == 'Producción':
+            # Produccion can only update the status
+            status = request.form.get('status')
+            if status:
+                order.status = status
+                db.session.commit()
+                flash('Estado de trabajo actualizado.', 'success')
+            return redirect(url_for('orders_index'))
+            
         customer_id = request.form.get('customer_id')
         title = request.form.get('title')
         
@@ -855,6 +881,7 @@ def edit_order(order_id):
 
 @app.route("/orders/<int:order_id>/delete", methods=["POST"])
 @login_required
+@roles_required('Administrador', 'Ventas')
 def delete_order(order_id):
     from app.models.order import Order
     from app.models.billing import Invoice
@@ -1009,6 +1036,7 @@ def get_current_month_range():
 
 @app.route("/finance")
 @login_required
+@roles_required('Administrador')
 def finance_dashboard():
     from app.models.finance import Transaction
     from sqlalchemy import func
@@ -1053,6 +1081,7 @@ def finance_dashboard():
 
 @app.route("/finance/transactions")
 @login_required
+@roles_required('Administrador')
 def finance_transactions():
     from app.models.finance import Transaction
     transactions = Transaction.query.order_by(Transaction.date.desc()).all()
@@ -1060,6 +1089,7 @@ def finance_transactions():
 
 @app.route("/finance/expense/new", methods=["GET", "POST"])
 @login_required
+@roles_required('Administrador')
 def finance_new_expense():
     from app.models.finance import Transaction
     if request.method == "POST":

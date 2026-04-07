@@ -7,12 +7,14 @@
         <p>Hoy es {{ date_string }}</p>
     </div>
     <div class="header-actions">
+        {% if current_user.role != 'Producción' %}
         <a href="#" class="btn btn-secondary">
             <i class="fa-solid fa-user-plus"></i> Nuevo Cliente
         </a>
-        <a href="#" class="btn btn-primary">
+        <a href="{{ url_for('new_order') }}" class="btn btn-primary">
             <i class="fa-solid fa-plus"></i> Crear Pedido
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -62,6 +64,7 @@
         <div class="metric-subtitle">Aún sin iniciar diseño/producción</div>
     </div>
 
+    {% if current_user.role != 'Producción' %}
     <div class="metric-card payment">
         <div class="metric-header">
             <span class="metric-title">Ventas Totales</span>
@@ -105,17 +108,17 @@
         <div class="metric-value">${{ "%.2f"|format(metrics.pending_balance) }}</div>
         <div class="metric-subtitle">Por cobrar ({{ metrics.pending_payments }} notas)</div>
     </div>
+    {% endif %}
 </div>
 
 <!-- Charts Grid -->
 <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 20px;">
-    <!-- Monthly Sales Chart -->
     {% if current_user.role != 'Producción' %}
+    <!-- Monthly Sales Chart -->
     <div class="section-card" style="grid-column: 1 / -1; min-height: 300px;">
         <div class="section-header"><h2 class="section-title">Ventas Históricas del Año ({{ date_string.split(' ')[-1] }})</h2></div>
         <div style="height: 250px; width: 100%;"><canvas id="monthlySalesChart"></canvas></div>
     </div>
-    {% endif %}
 
     <div class="section-card" style="min-height: 250px;">
         <div class="section-header"><h2 class="section-title">Estado de Pagos</h2></div>
@@ -125,6 +128,7 @@
         <div class="section-header"><h2 class="section-title">Métodos de Pago</h2></div>
         <div style="height: 180px; width: 100%;"><canvas id="methodsChart"></canvas></div>
     </div>
+    {% endif %}
 </div>
 
 <script id="status-data" type="application/json">{{ status_dict | tojson | safe }}</script>
@@ -187,7 +191,7 @@
             </li>
             {% endif %}
             
-            {% if metrics.pending_payments > 0 %}
+            {% if current_user.role != 'Producción' and metrics.pending_payments > 0 %}
             <li class="alert-item">
                 <div class="alert-icon danger">
                     <i class="fa-solid fa-triangle-exclamation"></i>

@@ -20,13 +20,13 @@
             <!-- Nombre del trabajo -->
             <div class="form-group mb-0">
                 <label for="title" style="font-weight: 600;">Referencia / Nombre del Trabajo *</label>
-                <input type="text" class="form-control" style="padding: 12px;" id="title" name="title" required value="{{ order.title or '' }}">
+                <input type="text" class="form-control" style="padding: 12px;" id="title" name="title" required value="{{ order.title or '' }}" {% if current_user.role == 'Producción' %}disabled{% endif %}>
             </div>
 
             <!-- Cliente -->
             <div class="form-group mb-0">
                 <label for="customer_id" style="font-weight: 600;">Cliente *</label>
-                <select class="form-control" style="padding: 12px;" id="customer_id" name="customer_id" required>
+                <select class="form-control" style="padding: 12px;" id="customer_id" name="customer_id" required {% if current_user.role == 'Producción' %}disabled{% endif %}>
                     <option value="" disabled>Seleccione un cliente</option>
                     {% for customer in customers %}
                         <option value="{{ customer.id }}" {% if customer.id == order.customer_id %}selected{% endif %}>{{ customer.name }} {% if customer.business_name %}({{ customer.business_name }}){% endif %}</option>
@@ -39,7 +39,7 @@
             <!-- Fecha de Entrega -->
             <div class="form-group mb-0">
                 <label for="delivery_date" style="font-weight: 600;">Fecha de Entrega Estimada *</label>
-                <input type="date" class="form-control" style="padding: 12px;" id="delivery_date" name="delivery_date" required value="{{ order.delivery_date.strftime('%Y-%m-%d') if order.delivery_date else '' }}">
+                <input type="date" class="form-control" style="padding: 12px;" id="delivery_date" name="delivery_date" required value="{{ order.delivery_date.strftime('%Y-%m-%d') if order.delivery_date else '' }}" {% if current_user.role == 'Producción' %}disabled{% endif %}>
             </div>
 
             <!-- Diseño Checkbox -->
@@ -47,7 +47,7 @@
                 <label style="font-weight: 600;">Diseño del Proyecto</label>
                 <div style="margin-top: 12px;">
                     <label class="switch" style="display: inline-flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" name="has_design" id="has_design" style="width: 20px; height: 20px; margin-right: 12px;" {% if order.has_design %}checked{% endif %}>
+                        <input type="checkbox" name="has_design" id="has_design" style="width: 20px; height: 20px; margin-right: 12px;" {% if order.has_design %}checked{% endif %} {% if current_user.role == 'Producción' %}disabled{% endif %}>
                         <span style="font-size: 0.95rem; color: var(--text-secondary);">El cliente ya cuenta con diseño listo</span>
                     </label>
                 </div>
@@ -67,9 +67,11 @@
 
         <h3 style="margin-top: 40px; margin-bottom: 20px; font-size: 1.2rem; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
             Productos de la Orden
+            {% if current_user.role != 'Producción' %}
             <button type="button" class="btn btn-secondary" id="add-item-btn" style="padding: 6px 12px; font-size: 0.9rem;">
                 <i class="fa-solid fa-plus"></i> Añadir Producto
             </button>
+            {% endif %}
         </h3>
 
         <!-- Dynamic Items Table -->
@@ -81,30 +83,33 @@
                         <th style="width: 10%;">Piezas</th>
                         <th style="width: 15%;">Ancho (cm)</th>
                         <th style="width: 15%;">Alto (cm)</th>
+                        {% if current_user.role != 'Producción' %}
                         <th style="width: 15%; text-align: right;">Subtotal</th>
                         <th style="width: 10%; text-align: center;">Acciones</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody id="items-tbody">
                     {% for item in order_items %}
                     <tr class="item-row">
                         <td>
-                            <select class="form-control" name="product_id[]" required style="padding: 8px;" onchange="calculateRow(this)">
+                            <select class="form-control" name="product_id[]" required style="padding: 8px;" onchange="calculateRow(this)" {% if current_user.role == 'Producción' %}disabled{% endif %}>
                                 <option value="" disabled>Seleccione producto...</option>
                                 {% for product in products %}
-                                    <option value="{{ product.id }}" data-price="{{ product.base_price }}" data-minprice="{{ product.min_price or 0 }}" data-dynamic="{{ 'true' if product.is_dynamic_pricing else 'false' }}" {% if product.id == item.product_id %}selected{% endif %}>{{ product.code or '' }} - {{ product.name }} (${{ product.base_price }})</option>
+                                    <option value="{{ product.id }}" data-price="{{ product.base_price }}" data-minprice="{{ product.min_price or 0 }}" data-dynamic="{{ 'true' if product.is_dynamic_pricing else 'false' }}" {% if product.id == item.product_id %}selected{% endif %}>{{ product.code or '' }} - {{ product.name }} {% if current_user.role != 'Producción' %}(${{ product.base_price }}){% endif %}</option>
                                 {% endfor %}
                             </select>
                         </td>
                         <td>
-                            <input type="number" class="form-control" name="quantity[]" min="1" value="{{ item.quantity }}" required style="padding: 8px;" onchange="calculateRow(this)">
+                            <input type="number" class="form-control" name="quantity[]" min="1" value="{{ item.quantity }}" required style="padding: 8px;" onchange="calculateRow(this)" {% if current_user.role == 'Producción' %}disabled{% endif %}>
                         </td>
                         <td>
-                            <input type="number" step="0.01" class="form-control" name="width[]" value="{{ item.width or '' }}" placeholder="Ej. 100" style="padding: 8px;" onchange="calculateRow(this)">
+                            <input type="number" step="0.01" class="form-control" name="width[]" value="{{ item.width or '' }}" placeholder="Ej. 100" style="padding: 8px;" onchange="calculateRow(this)" {% if current_user.role == 'Producción' %}disabled{% endif %}>
                         </td>
                         <td>
-                            <input type="number" step="0.01" class="form-control" name="height[]" value="{{ item.height or '' }}" placeholder="Ej. 200" style="padding: 8px;" onchange="calculateRow(this)">
+                            <input type="number" step="0.01" class="form-control" name="height[]" value="{{ item.height or '' }}" placeholder="Ej. 200" style="padding: 8px;" onchange="calculateRow(this)" {% if current_user.role == 'Producción' %}disabled{% endif %}>
                         </td>
+                        {% if current_user.role != 'Producción' %}
                         <td style="text-align: right; font-weight: bold;" class="row-subtotal">
                             ${{ "%.2f"|format(item.subtotal) if item.subtotal else "0.00" }}
                         </td>
@@ -113,6 +118,7 @@
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </td>
+                        {% endif %}
                     </tr>
                     {% else %}
                     <!-- Template Row if somehow empty -->
@@ -149,6 +155,7 @@
         </div>
 
         <!-- Financial Fields -->
+        {% if current_user.role != 'Producción' %}
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 24px;">
             <!-- Descuento -->
             <div style="padding: 16px; background: #F8FAFC; border: 1px solid var(--border-light); border-radius: 8px;">
@@ -183,6 +190,7 @@
                 </select>
             </div>
         </div>
+        {% endif %}
 
         <!-- Submit -->
         <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--border-light); padding-top: 24px;">
@@ -190,7 +198,7 @@
                 <i class="fa-solid fa-arrow-left"></i> Cancelar
             </a>
             <button type="submit" class="btn btn-primary" style="padding: 12px 32px; font-size: 1rem;">
-                <i class="fa-solid fa-save"></i> Guardar Cambios
+                <i class="fa-solid fa-save"></i> {% if current_user.role == 'Producción' %}Actualizar Estatus{% else %}Guardar Cambios{% endif %}
             </button>
         </div>
 

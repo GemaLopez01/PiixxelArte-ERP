@@ -7,9 +7,11 @@
         <p>Gestiona todas las órdenes de trabajo de tus clientes</p>
     </div>
     <div class="header-actions">
+        {% if current_user.role != 'Producción' %}
         <a href="{{ url_for('new_order') }}" class="btn btn-primary">
             <i class="fa-solid fa-plus"></i> Nuevo Pedido
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -21,6 +23,7 @@
                     <th>Fecha</th>
                     <th>Nota</th>
                     <th>Cliente</th>
+                    {% if current_user.role != 'Producción' %}
                     <th>Subtotal</th>
                     <th>IVA</th>
                     <th>Total</th>
@@ -28,6 +31,7 @@
                     <th>Saldo</th>
                     <th>Estado de Pago</th>
                     <th>Método</th>
+                    {% endif %}
                     <th>Estado de Trabajo</th>
                     <th>Acciones</th>
                 </tr>
@@ -41,6 +45,7 @@
                         <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ order.title or 'Sin título' }}</span>
                     </td>
                     <td class="customer-name">{{ order.customer.name }}</td>
+                    {% if current_user.role != 'Producción' %}
                     <td>${{ "%.2f" | format(order.subtotal_amount or 0) }}</td>
                     <td>${{ "%.2f" | format(order.tax_amount or 0) }}</td>
                     <td style="font-weight: bold; color: var(--primary);">${{ "%.2f" | format(order.total_amount or 0) }}</td>
@@ -51,8 +56,14 @@
                         <span class="payment-status {{ payment_status_class }}">{{ order.payment_status or 'Pendiente' }}</span>
                     </td>
                     <td>{{ order.payment_method or 'N/A' }}</td>
+                    {% endif %}
                     <td><span class="status-badge status-{{ order.status|replace(' ', '') }}">{{ order.status }}</span></td>
                     <td class="action-buttons" style="display: flex; gap: 6px;">
+                        {% if current_user.role == 'Producción' %}
+                        <a href="{{ url_for('edit_order', order_id=order.id) }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" title="Actualizar Estado">
+                            <i class="fa-solid fa-eye"></i> / <i class="fa-solid fa-wrench"></i>
+                        </a>
+                        {% else %}
                         <a href="{{ url_for('edit_order', order_id=order.id) }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
@@ -61,6 +72,7 @@
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% else %}

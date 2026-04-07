@@ -36,6 +36,7 @@
                     <i class="fa-solid fa-layer-group"></i> Pedidos
                 </a>
             </li>
+            {% if current_user.role != 'Producción' %}
             <li>
                 <a href="{{ url_for('customers_index') }}" class="{% if 'customers' in request.endpoint %}active{% endif %}">
                     <i class="fa-solid fa-users"></i> Clientes
@@ -46,6 +47,8 @@
                     <i class="fa-solid fa-box-open"></i> Productos
                 </a>
             </li>
+            {% endif %}
+            {% if current_user.role == 'Administrador' %}
             <li class="nav-item has-submenu">
                 <a href="#" class="{% if 'inventory' in request.endpoint %}active{% endif %}" onclick="this.parentElement.classList.toggle('open'); return false;">
                     <i class="fa-solid fa-warehouse"></i> Inventario <i class="fas fa-chevron-down" style="float: right; margin-top: 4px; font-size: 0.8rem;"></i>
@@ -57,7 +60,8 @@
                     <li><a href="{{ url_for('inventory_suppliers') }}" class="{% if 'supplier' in request.endpoint %}active{% endif %}">Proveedores</a></li>
                 </ul>
             </li>
-            {% if current_user.role != 'Producción' %}
+            {% endif %}
+            {% if current_user.role == 'Administrador' %}
             <li class="has-submenu {% if 'finance' in request.endpoint %}open{% endif %}">
                 <a href="#" class="{% if 'finance' in request.endpoint %}active{% endif %}" onclick="this.parentElement.classList.toggle('open'); return false;">
                     <i class="fa-solid fa-file-invoice-dollar"></i> Finanzas <i class="fas fa-chevron-down" style="float: right; margin-top: 4px; font-size: 0.8rem;"></i>
