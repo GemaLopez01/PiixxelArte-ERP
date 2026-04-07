@@ -63,9 +63,15 @@
                         <a href="{{ url_for('edit_order', order_id=order.id) }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" title="Actualizar Estado">
                             <i class="fa-solid fa-eye"></i> / <i class="fa-solid fa-wrench"></i>
                         </a>
+                        <a href="{{ url_for('print_order', order_id=order.id) }}" class="btn btn-primary" style="padding: 6px 12px; font-size: 0.8rem; background-color: #2563eb;" title="Imprimir Nota" target="_blank">
+                            <i class="fa-solid fa-print"></i>
+                        </a>
                         {% else %}
                         <a href="{{ url_for('edit_order', order_id=order.id) }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
                             <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                        <a href="{{ url_for('print_order', order_id=order.id) }}" class="btn btn-primary" style="padding: 6px 12px; font-size: 0.8rem; background-color: #2563eb;" title="Imprimir Nota" target="_blank">
+                            <i class="fa-solid fa-print"></i>
                         </a>
                         <form method="POST" action="{{ url_for('delete_order', order_id=order.id) }}" style="display:inline;">
                             <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="return confirm('¿Eliminar este pedido?');">

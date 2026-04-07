@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nota de Remisión - #{{ '%04d' % order.id }}</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+        }
+        .receipt {
+            background: #fff;
+            width: 105mm; /* Ancho ajustado a nota promedio */
+            min-height: 220mm;
+            padding: 12mm;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+            /* Fondo con patron tenue si se desea (simulando los hexágonos) */
+            /* background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px; */
+        }
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+            }
+            .receipt {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                border: none;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        .logo-area {
+            width: 65%;
+        }
+        .logo-area h1 {
+            margin: 0;
+            color: #0c4a6e;
+            font-size: 24px;
+            letter-spacing: -0.5px;
+            font-style: italic;
+        }
+        /* Asumiendo que el logo de verdad estaría aquí, usaremos la URL estática */
+        .logo-img {
+            max-width: 130px;
+            height: auto;
+            margin-bottom: 5px;
+        }
+        .contact-info {
+            font-size: 9px;
+            margin-top: 5px;
+            line-height: 1.3;
+            color: #333;
+        }
+        .folio-area {
+            width: 30%;
+            text-align: center;
+        }
+        .folio-box {
+            border: 1px solid #333;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            font-size: 11px;
+            overflow: hidden;
+        }
+        .folio-title {
+            border-bottom: 1px solid #333;
+            padding: 3px;
+            background: #fafafa;
+        }
+        .folio-number {
+            padding: 4px;
+            color: #e11d48;
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+        .date-box {
+            border: 1px solid #333;
+            border-radius: 4px;
+            font-size: 11px;
+            overflow: hidden;
+        }
+        .date-title {
+            border-bottom: 1px solid #333;
+            padding: 2px;
+            background: #fafafa;
+        }
+        .date-value {
+            padding: 3px;
+        }
+        
+        .name-box {
+            border: 2px solid #555;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+            margin-bottom: 15px;
+            display: flex;
+        }
+        .name-label {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .name-value {
+            flex-grow: 1;
+            border-bottom: 1px solid #333; /* Línea de la plantilla original */
+        }
+        
+        .table-container {
+            min-height: 150mm;
+            border: 1px solid #333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        th, td {
+            padding: 6px;
+            vertical-align: top;
+        }
+        th {
+            border-bottom: 1px solid #333;
+            text-align: center;
+            background: #fafafa;
+        }
+        td {
+            border-bottom: 1px dashed #ddd; /* Separador leve para no sobrecargar */
+        }
+        
+        th:nth-child(1), td:nth-child(1) { width: 12%; text-align: center; border-right: 1px solid #333; }
+        th:nth-child(2), td:nth-child(2) { width: 68%; border-right: 1px solid #333; }
+        th:nth-child(3), td:nth-child(3) { width: 20%; text-align: right; }
+        
+        /* Líneas verticales que llegan hasta abajo aunque no haya ítems */
+        .table-lines {
+            position: absolute;
+            top: 25px;
+            bottom: 0;
+            width: 100%;
+            pointer-events: none;
+        }
+        .table-lines .line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            border-right: 1px solid #333;
+        }
+        .table-lines .line-1 { left: 12%; }
+        .table-lines .line-2 { left: 80%; }
+        
+        .bottom-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 10px;
+        }
+        .signature-area {
+            width: 35%;
+            text-align: center;
+        }
+        .signature-line {
+            border-bottom: 1px solid #333;
+            margin-bottom: 5px;
+            height: 30px;
+        }
+        .signature-label {
+            font-size: 12px;
+        }
+
+        .totals-area {
+            width: 50%;
+        }
+        .total-row {
+            display: flex;
+            border: 1px solid #333;
+            margin-bottom: -1px; /* Para colapsar los bordes */
+            background: #fff;
+        }
+        .total-row:first-child {
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }
+        .total-row:last-child {
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .total-label {
+            width: 50%;
+            padding: 4px;
+            border-right: 1px solid #333;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: right;
+            background: #fafafa;
+        }
+        .total-value {
+            width: 50%;
+            padding: 4px;
+            font-size: 12px;
+            text-align: right;
+        }
+        
+        .legal-text {
+            font-size: 6px;
+            line-height: 1.1;
+            text-align: justify;
+            margin-top: 15px;
+            color: #111;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .action-btns {
+            position: fixed; 
+            top: 20px; 
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            text-decoration: none;
+            text-align: center;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .bg-gray {
+            background: #4b5563;
+        }
+    </style>
+</head>
+<body>
+    <div class="action-btns no-print">
+        <button class="btn" onclick="window.print()">🖨️ Imprimir Nota</button>
+        <a href="{{ url_for('orders_index') }}" class="btn bg-gray">⬅️ Regresar</a>
+    </div>
+
+    <!-- Contenedor Principal de la Nota -->
+    <div class="receipt">
+        
+        <!-- Cabecera -->
+        <div class="header">
+            <div class="logo-area">
+                <!-- Mostramos logo si está, si no un fallback en texto -->
+                <img src="{{ url_for('static', filename='img/logo-piixxi.png') }}" class="logo-img" alt="PiixxelArte" onerror="this.outerHTML='<h1>PiixxelArte</h1>'">
+                
+                <div class="contact-info">
+                    Cel. 427 116 9418 Tel. 427 366 3731<br>
+                    impresion@pxfarte.com<br>
+                    San Juan del Río, Querétaro.
+                </div>
+            </div>
+            
+            <div class="folio-area">
+                <div class="folio-box">
+                    <div class="folio-title">Nota de remisión</div>
+                    <div class="folio-number">{{ '%04d' % order.id }}</div>
+                </div>
+                <div class="date-box">
+                    <div class="date-title">Fecha</div>
+                    <div class="date-value">{{ order.created_at.strftime('%d/%m/%Y') }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nombre del Cliente -->
+        <div class="name-box">
+            <div class="name-label">NOMBRE:</div>
+            <div class="name-value">{{ order.customer.name }} {% if order.customer.business_name %}({{ order.customer.business_name }}){% endif %} - {{ order.title }}</div>
+        </div>
+
+        <!-- Tabla de Artículos -->
+        <div class="table-container">
+            <div class="table-lines">
+                <div class="line line-1"></div>
+                <div class="line line-2"></div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Cant</th>
+                        <th>Descripción</th>
+                        <th>Importe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.product.code or '' }} {{ item.product.name }}
+                            {% if item.width and item.height %}
+                            <br><small>({{ item.width }}x{{ item.height }} cm)</small>
+                            {% endif %}
+                        </td>
+                        <td>${{ "%.2f"|format(item.subtotal) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Sección Inferior (Entrega y Totales) -->
+        <div class="bottom-section">
+            <div class="signature-area">
+                <div class="signature-line"></div>
+                <div class="signature-label">Entrega</div>
+            </div>
+            
+            <div class="totals-area">
+                <div class="total-row" style="border-bottom: 0;">
+                    <div class="total-label">I.V.A. $</div>
+                    <div class="total-value">${{ "%.2f"|format(order.tax_amount or 0) }}</div>
+                </div>
+                <div class="total-row" style="border-bottom: 0;">
+                    <div class="total-label">ATPO. $</div>
+                    <div class="total-value">${{ "%.2f"|format(order.advance_payment or 0) }}</div>
+                </div>
+                <div class="total-row">
+                    <div class="total-label">TOTAL $</div>
+                    <div class="total-value" style="font-weight: bold;">${{ "%.2f"|format(order.total_amount or 0) }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Texto Legal -->
+        <div class="legal-text">
+            DEBO(EMOS) Y PAGARE(MOS) INCONDICIONALMENTE Y SIN PROTESTA A LA ORDEN DE LEONEL LÓPEZ MENDOZA EL DÍA ____ DE ________________ DE ________ A LA CANTIDAD QUE IMPORTE ESTA NOTA DE REMISIÓN ASÍ COMO ESTAMOS DE ACUERDO EN QUE ESTE PAGARÉ CAUSARA INTERESES MORATORIOS A RAZÓN DE _____% MENSUAL A PARTIR DE LA FECHA DE VENCIMIENTO SOBRE SU IMPORTE (TOTAL O PARCIAL) EN SU CASO MISMOS QUE PAGAREMOS SIN EXCUSA NI PRETEXTO, ASÍ COMO LOS GASTOS JUDICIALES Y/O EXTRAJUDICIALES QUE LO AMERITEN, LA FIRMA PUESTA EN CUALQUIER LUGAR SE CONSIDERA COMO ACEPTACIÓN DE ESTA REMISIÓN.
+        </div>
+
+    </div>
+</body>
+</html>

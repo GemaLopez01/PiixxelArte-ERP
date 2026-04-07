@@ -717,6 +717,19 @@ def new_order():
     return render_template("orders/new.html", customers=customers, products=products)
 
 
+@app.route("/orders/<int:order_id>/print", methods=["GET"])
+@login_required
+def print_order(order_id):
+    order = Order.query.get_or_404(order_id)
+    order_items = OrderItem.query.filter_by(order_id=order.id).all()
+    # Calculates subtotal, iva and so on for display
+    subtotal = order.subtotal_amount or 0
+    # Assuming IVA was calculated loosely as total_amount - subtotal, but actually total_amount could include discount.
+    # In PiixxeArte, tax_amount is set.
+    iva = order.tax_amount or 0
+    return render_template("orders/print.html", order=order, items=order_items, subtotal=subtotal, iva=iva)
+
+
 @app.route("/orders/<int:order_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_order(order_id):
