@@ -580,8 +580,7 @@ def new_order():
             new_name = request.form.get('new_customer_name')
             new_phone = request.form.get('new_customer_phone')
             new_email = request.form.get('new_customer_email')
-            
-            from app.models.customer import Customer
+
             new_customer = Customer(name=new_name, phone=new_phone, email=new_email)
             db.session.add(new_customer)
             db.session.flush() # Insert to DB and get the ID immediately
