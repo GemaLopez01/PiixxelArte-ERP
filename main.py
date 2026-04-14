@@ -1113,6 +1113,45 @@ def finance_dashboard():
                            category_summary=category_summary,
                            recent_transactions=recent_txs)
 
+@app.route("/finance/daily")
+@login_required
+@roles_required('Administrador')
+def finance_daily_report():
+    from app.models.finance import Transaction
+    from app.models.order import Order
+    from datetime import date
+    from sqlalchemy import func
+
+    today = date.today()
+
+    # Sales (Órdenes creadas hoy)
+    # Using python filtering or SQLAlchemy func.date depending on dialect. For SQLite/Postgres compatibility:
+    # It's safer to use python filtering on the day if we don't know the exact db engine timezone trick, 
+    # but func.cast(Order.created_at, db.Date) == today usually works. 
+    # We will fetch recent orders to handle it safely or use SQLAlchemy.
+    orders = Order.query.order_by(Order.created_at.desc()).all()
+    today_orders = [o for o in orders if o.created_at.date() == today]
+    total_sales = sum((float(o.total_amount) for o in today_orders if o.total_amount), 0.0)
+
+    # Incomes grouped by payment_method (Transacciones de ingreso creadas hoy)
+    transactions = Transaction.query.filter_by(type='Ingreso').order_by(Transaction.date.desc()).all()
+    today_incomes = [t for t in transactions if t.date.date() == today]
+    
+    total_income = 0.0
+    income_by_method = {}
+    for tx in today_incomes:
+        method = tx.payment_method or 'No Especificado'
+        val = float(tx.amount)
+        income_by_method[method] = income_by_method.get(method, 0.0) + val
+        total_income += val
+
+    return render_template('finance/daily_report.html', 
+                           today=today, 
+                           today_orders=today_orders,
+                           total_sales=total_sales,
+                           total_income=total_income,
+                           income_by_method=income_by_method)
+
 @app.route("/finance/transactions")
 @login_required
 @roles_required('Administrador')

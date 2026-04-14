@@ -44,7 +44,7 @@
                         #{{ "%04d" | format(order.id) }}<br>
                         <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ order.title or 'Sin título' }}</span>
                     </td>
-                    <td class="customer-name">{{ order.customer.name }}</td>
+                    <td class="customer-name">{{ order.customer.name if order.customer else 'Cliente Eliminado (o Sin nombre)' }}</td>
                     {% if current_user.role != 'Producción' %}
                     <td>${{ "%.2f" | format(order.subtotal_amount or 0) }}</td>
                     <td>${{ "%.2f" | format(order.tax_amount or 0) }}</td>
