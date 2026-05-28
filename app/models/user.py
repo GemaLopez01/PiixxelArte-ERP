@@ -14,7 +14,7 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationships
+    # Relaciones
     orders = db.relationship('Order', backref='user', lazy=True)
 
     def set_password(self, password):
