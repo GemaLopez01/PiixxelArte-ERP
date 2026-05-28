@@ -1,0 +1,344 @@
+{% extends 'base.html' %}
+
+{% block title %}Tablero del Taller (Producción) - PiixxelArte ERP{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="dashboard-title">
+        <h1>Tablero del Taller</h1>
+        <p>Monitorea y actualiza el flujo operativo de los trabajos en tiempo real</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('calendar_view') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-calendar-days"></i> Ver Calendario
+        </a>
+    </div>
+</div>
+
+<!-- Board Summary Alerts -->
+{% set ns = namespace(delayed_count=0) %}
+{% for order in pending_orders + producing_orders %}
+    {% if order.delivery_date and order.delivery_date < today %}
+        {% set ns.delayed_count = ns.delayed_count + 1 %}
+    {% endif %}
+{% endfor %}
+
+{% if ns.delayed_count > 0 %}
+<div class="alert alert-danger" style="margin-bottom: 20px; display: flex; align-items: center; gap: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 12px 20px; color: #b91c1c;">
+    <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.4rem;"></i>
+    <div>
+        <strong>¡Atención!</strong> Tienes <strong>{{ ns.delayed_count }}</strong> pedido(s) con fecha de entrega comprometida vencida. Requieren acción prioritaria.
+    </div>
+</div>
+{% endif %}
+
+<!-- Kanban Columns Grid -->
+<div class="kanban-board">
+    
+    <!-- Column 1: PENDIENTES -->
+    <div class="kanban-col bg-pending-col">
+        <div class="kanban-col-header">
+            <h3>Por Iniciar</h3>
+            <span class="count-badge count-pending">{{ pending_orders|length }}</span>
+        </div>
+        <div class="kanban-cards">
+            {% for order in pending_orders %}
+                {{ render_order_card(order) }}
+            {% else %}
+                <div class="empty-col-message">No hay trabajos en espera.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Column 2: EN PRODUCCIÓN -->
+    <div class="kanban-col bg-producing-col">
+        <div class="kanban-col-header">
+            <h3>En Producción</h3>
+            <span class="count-badge count-producing">{{ producing_orders|length }}</span>
+        </div>
+        <div class="kanban-cards">
+            {% for order in producing_orders %}
+                {{ render_order_card(order) }}
+            {% else %}
+                <div class="empty-col-message">No hay trabajos activos en taller.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Column 3: LISTO PARA ENTREGAR -->
+    <div class="kanban-col bg-ready-col">
+        <div class="kanban-col-header">
+            <h3>Listo / Terminado</h3>
+            <span class="count-badge count-ready">{{ ready_orders|length }}</span>
+        </div>
+        <div class="kanban-cards">
+            {% for order in ready_orders %}
+                {{ render_order_card(order) }}
+            {% else %}
+                <div class="empty-col-message">No hay trabajos terminados por entregar.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+
+<!-- Reusable Jinja Macro to render Cards cleanly -->
+{% macro render_order_card(order) %}
+<div class="kanban-card {% if order.delivery_date and order.delivery_date < today %}card-delayed{% endif %}">
+    <div class="card-top">
+        <span class="card-id">#{{ "%04d" | format(order.id) }}</span>
+        
+        <!-- Semáforo de Fecha -->
+        {% if order.delivery_date %}
+            {% if order.delivery_date < today %}
+                <span class="date-badge date-delayed" title="Fecha vencida (atrasado)">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Retrasado
+                </span>
+            {% elif order.delivery_date == today %}
+                <span class="date-badge date-today" title="Se entrega hoy">
+                    <i class="fa-solid fa-bell"></i> Entrega Hoy
+                </span>
+            {% else %}
+                <span class="date-badge date-ontime" title="En tiempo">
+                    <i class="fa-solid fa-circle-check"></i> En Tiempo
+                </span>
+            {% endif %}
+        {% endif %}
+    </div>
+    
+    <h4 class="card-job-title">{{ order.title or 'Sin descripción de trabajo' }}</h4>
+    <p class="card-customer"><i class="fa-solid fa-user"></i> {{ order.customer.name if order.customer else 'Cliente Legacy' }}</p>
+    
+    {% if order.delivery_date %}
+        <div class="card-date-info">
+            <span class="label">Entrega:</span>
+            <span class="value">{{ order.delivery_date.strftime('%d/%m/%Y') }}</span>
+        </div>
+    {% endif %}
+    
+    <!-- Action buttons according to workflow stage -->
+    <div class="card-actions">
+        <form method="POST" action="{{ url_for('status_quick', order_id=order.id) }}" style="width: 100%; display: flex; gap: 8px;">
+            {% if order.status == 'Pendiente' %}
+                <input type="hidden" name="status" value="Producción">
+                <button type="submit" class="btn btn-primary btn-quick-act" style="background-color: #f59e0b; border-color: #f59e0b; width: 100%;">
+                    <i class="fa-solid fa-play"></i> Iniciar Producción
+                </button>
+            {% elif order.status == 'Producción' %}
+                <input type="hidden" name="status" value="Listo">
+                <button type="submit" class="btn btn-primary btn-quick-act" style="background-color: #10b981; border-color: #10b981; width: 100%;">
+                    <i class="fa-solid fa-check"></i> Marcar Listo
+                </button>
+            {% elif order.status == 'Listo' %}
+                <input type="hidden" name="status" value="Entregado">
+                <button type="submit" class="btn btn-primary btn-quick-act" style="background-color: #6b7280; border-color: #6b7280; width: 100%;">
+                    <i class="fa-solid fa-box-open"></i> Marcar Entregado
+                </button>
+            {% endif %}
+        </form>
+    </div>
+    <div class="card-details-link">
+        <a href="{{ url_for('edit_order', order_id=order.id) }}" title="Ver detalles y desgloses de productos">
+            Detalles <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
+        </a>
+    </div>
+</div>
+{% endmacro %}
+
+<!-- Kanban CSS Style Tokens -->
+<style>
+.kanban-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 30px;
+}
+.kanban-col {
+    background-color: var(--bg-card, #ffffff);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    padding: 16px;
+    min-height: 500px;
+}
+body.dark-mode .kanban-col {
+    border-color: rgba(255, 255, 255, 0.05);
+    background-color: #1a252f;
+}
+.kanban-col-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid rgba(0,0,0,0.06);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+}
+body.dark-mode .kanban-col-header {
+    border-bottom-color: rgba(255,255,255,0.06);
+}
+.kanban-col-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.count-badge {
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+.count-pending {
+    background-color: rgba(37, 99, 235, 0.1);
+    color: #2563eb;
+}
+.count-producing {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+.count-ready {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.kanban-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.kanban-card {
+    background-color: var(--bg-body, #f8fafc);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    padding: 14px;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+body.dark-mode .kanban-card {
+    background-color: #111a22;
+    border-color: rgba(255, 255, 255, 0.05);
+}
+.kanban-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.card-delayed {
+    border-left: 4px solid #ef4444 !important;
+}
+
+.card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.card-id {
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 0.85rem;
+}
+.date-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.date-delayed {
+    background-color: #fef2f2;
+    color: #ef4444;
+}
+body.dark-mode .date-delayed {
+    background-color: rgba(239, 68, 68, 0.15);
+}
+.date-today {
+    background-color: #fffbeb;
+    color: #d97706;
+}
+body.dark-mode .date-today {
+    background-color: rgba(217, 119, 6, 0.15);
+}
+.date-ontime {
+    background-color: #f0fdf4;
+    color: #16a34a;
+}
+body.dark-mode .date-ontime {
+    background-color: rgba(22, 163, 74, 0.15);
+}
+
+.card-job-title {
+    margin: 0 0 6px 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.card-customer {
+    margin: 0 0 10px 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.card-date-info {
+    font-size: 0.8rem;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    background: rgba(0,0,0,0.02);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+body.dark-mode .card-date-info {
+    background: rgba(255,255,255,0.02);
+}
+.card-date-info .label {
+    color: var(--text-secondary);
+}
+.card-date-info .value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-actions {
+    margin-top: 10px;
+}
+.btn-quick-act {
+    padding: 8px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #ffffff !important;
+}
+
+.card-details-link {
+    text-align: right;
+    margin-top: 8px;
+    font-size: 0.75rem;
+}
+.card-details-link a {
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+.card-details-link a:hover {
+    color: var(--primary);
+}
+
+.empty-col-message {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    padding: 40px 10px;
+    border: 2px dashed rgba(0,0,0,0.06);
+    border-radius: 8px;
+}
+body.dark-mode .empty-col-message {
+    border-color: rgba(255,255,255,0.06);
+}
+</style>
+{% endblock %}

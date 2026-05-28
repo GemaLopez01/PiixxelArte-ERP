@@ -566,8 +566,9 @@ def delete_customer(customer_id):
 @app.route("/orders")
 @login_required
 def orders_index():
+    from datetime import date
     orders = Order.query.order_by(Order.created_at.desc()).all()
-    return render_template("orders/index.html", orders=orders)
+    return render_template("orders/index.html", orders=orders, today=date.today())
 
 @app.route("/orders/new", methods=["GET", "POST"])
 @login_required
@@ -1185,6 +1186,76 @@ def finance_new_expense():
         return redirect(url_for("finance_dashboard"))
         
     return render_template("finance/expense_form.html")
+
+# ==============================================================================
+# CALENDAR & PRODUCTION DEDICATED MODULES
+# ==============================================================================
+
+@app.route("/calendar")
+@login_required
+def calendar_view():
+    from datetime import date
+    return render_template("calendar.html", today=date.today())
+
+@app.route("/api/orders/events")
+@login_required
+def api_order_events():
+    from app.models.order import Order
+    orders = Order.query.filter(Order.status != 'Cancelado').all()
+    events = []
+    for order in orders:
+        if not order.delivery_date:
+            continue
+            
+        # Determine event color based on status
+        color = '#2563eb' # Blue default (Pendiente)
+        if order.status == 'Producción':
+            color = '#f59e0b' # Yellow
+        elif order.status == 'Listo':
+            color = '#10b981' # Green
+        elif order.status == 'Entregado':
+            color = '#6b7280' # Gray
+            
+        events.append({
+            'id': order.id,
+            'title': f"#{order.id:04d} - {order.customer.name if order.customer else 'Cliente'} ({order.title or 'Sin título'})",
+            'start': order.delivery_date.strftime('%Y-%m-%d'),
+            'color': color,
+            'url': url_for('edit_order', order_id=order.id)
+        })
+    return {'events': events}
+
+@app.route("/production")
+@login_required
+@roles_required('Administrador', 'Ventas', 'Producción')
+def production_board():
+    from app.models.order import Order
+    from datetime import date
+    # Get active orders grouped by status
+    pending = Order.query.filter_by(status='Pendiente').order_by(Order.delivery_date.asc()).all()
+    producing = Order.query.filter_by(status='Producción').order_by(Order.delivery_date.asc()).all()
+    ready = Order.query.filter_by(status='Listo').order_by(Order.delivery_date.asc()).all()
+    
+    return render_template("production_board.html", 
+                           pending_orders=pending, 
+                           producing_orders=producing, 
+                           ready_orders=ready,
+                           today=date.today())
+
+@app.route("/orders/<int:order_id>/status_quick", methods=["POST"])
+@login_required
+@roles_required('Administrador', 'Ventas', 'Producción')
+def status_quick(order_id):
+    from app.models.order import Order
+    order = Order.query.get_or_404(order_id)
+    new_status = request.form.get("status")
+    if new_status in ['Pendiente', 'Producción', 'Listo', 'Entregado', 'Cancelado']:
+        order.status = new_status
+        db.session.commit()
+        flash(f"Estado del pedido #{order.id:04d} actualizado a {new_status}.", "success")
+    else:
+        flash("Estado inválido.", "danger")
+    return redirect(url_for('production_board'))
 
 if __name__ == "__main__":
     app.run(debug=True)

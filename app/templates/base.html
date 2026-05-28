@@ -32,8 +32,18 @@
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('orders_index') }}" class="{% if 'orders' in request.endpoint %}active{% endif %}">
+                <a href="{{ url_for('orders_index') }}" class="{% if request.endpoint == 'orders_index' %}active{% endif %}">
                     <i class="fa-solid fa-layer-group"></i> Pedidos
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('production_board') }}" class="{% if request.endpoint == 'production_board' %}active{% endif %}">
+                    <i class="fa-solid fa-screwdriver-wrench"></i> Taller (Producción)
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('calendar_view') }}" class="{% if request.endpoint == 'calendar_view' %}active{% endif %}">
+                    <i class="fa-solid fa-calendar-days"></i> Calendario
                 </a>
             </li>
             {% if current_user.role != 'Producción' %}
