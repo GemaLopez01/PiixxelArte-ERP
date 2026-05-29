@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="dashboard-title">
+        <h1>Resumen Financiero Mensual</h1>
+        <p>Métricas y balance del mes en curso.</p>
+    </div>
+</div>
+
+<div class="finance-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 32px;">
+    <!-- Ingresos -->
+    <div class="stat-card" style="background: linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%);">
+        <div class="stat-icon" style="background: rgba(21, 128, 61, 0.2); color: #15803D;">
+            <i class="fa-solid fa-arrow-up-right-dots"></i>
+        </div>
+        <div class="stat-info">
+            <h3>Ingresos del Mes</h3>
+            <div class="stat-value" style="color: #166534;">${{ "%.2f" | format(total_income) }}</div>
+        </div>
+    </div>
+
+    <!-- Egresos -->
+    <div class="stat-card" style="background: linear-gradient(135deg, #FFE4E6 0%, #FECDD3 100%);">
+        <div class="stat-icon" style="background: rgba(225, 29, 72, 0.2); color: #E11D48;">
+            <i class="fa-solid fa-arrow-down-right-dots"></i>
+        </div>
+        <div class="stat-info">
+            <h3>Gastos/Egresos del Mes</h3>
+            <div class="stat-value" style="color: #BE123C;">${{ "%.2f" | format(total_expense) }}</div>
+        </div>
+    </div>
+
+    <!-- Balance -->
+    <div class="stat-card" style="background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%);">
+        <div class="stat-icon" style="background: rgba(75, 85, 99, 0.2); color: #4B5563;">
+            <i class="fa-solid fa-scale-balanced"></i>
+        </div>
+        <div class="stat-info">
+            <h3>Ganancia Neta</h3>
+            <div class="stat-value" style="{% if net_profit >= 0 %}color: #166534;{% else %}color: #BE123C;{% endif %}">${{ "%.2f" | format(net_profit) }}</div>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+    <!-- Recent Transactions -->
+    <div class="section-card">
+        <h2 style="font-size: 1.2rem; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 10px;">Últimos 10 Movimientos</h2>
+        <table class="modern-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-light);">Fecha</th>
+                    <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-light);">Categoría</th>
+                    <th style="padding: 10px; text-align: right; border-bottom: 2px solid var(--border-light);">Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tx in recent_transactions %}
+                <tr>
+                    <td style="padding: 12px 10px; border-bottom: 1px solid var(--light-bg); color: var(--text-secondary);">{{ tx.date.strftime('%d/%m/%Y') }}</td>
+                    <td style="padding: 12px 10px; border-bottom: 1px solid var(--light-bg);">
+                        {% if tx.type == 'Ingreso' %}
+                        <span style="color: #15803d; font-weight: 500;"><i class="fa-solid fa-plus-circle" style="font-size: 0.8rem;"></i> {{ tx.category }}</span>
+                        {% else %}
+                        <span style="color: #b91c1c; font-weight: 500;"><i class="fa-solid fa-minus-circle" style="font-size: 0.8rem;"></i> {{ tx.category }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 12px 10px; border-bottom: 1px solid var(--light-bg); text-align: right; font-weight: bold; {% if tx.type == 'Ingreso' %}color: #15803d;{% else %}color: #b91c1c;{% endif %}">
+                        ${{ "%.2f" | format(tx.amount) }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" style="text-align: center; padding: 20px; color: var(--text-secondary);">No hay movimientos recientes.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Gastos por categoría -->
+    <div class="section-card">
+        <h2 style="font-size: 1.2rem; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 10px;">Gastos por Categoría</h2>
+        <ul style="list-style: none; padding: 0;">
+            {% for cat, amt in category_summary.items() %}
+            <li style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--light-bg);">
+                <span style="color: var(--text-secondary);">{{ cat }}</span>
+                <span style="font-weight: 600; color: #b91c1c;">${{ "%.2f" | format(amt) }}</span>
+            </li>
+            {% else %}
+            <li style="text-align: center; padding: 20px; color: var(--text-secondary);">No hay gastos registrados este mes.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

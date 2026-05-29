@@ -14,26 +14,26 @@ class Product(db.Model):
     is_on_demand = db.Column(db.Boolean, default=False)
     image_path = db.Column(db.String(255), nullable=True)
     
-    is_dynamic_pricing = db.Column(db.Boolean, default=False) # True for items sold by dimension (Deprecated implicitly by pricing_strategy)
+    is_dynamic_pricing = db.Column(db.Boolean, default=False) # Verdadero para artículos vendidos por dimensión (obsoleto por pricing_strategy)
     
-    # New Pricing Strategies
-    # standard: fixed price
-    # area_based: uses width * height (replaces is_dynamic_pricing)
+    # Nuevas estrategias de precios
+    # standard: precio fijo
+    # area_based: usa ancho * alto (reemplaza is_dynamic_pricing)
     # formula_sellos: (base_price * 2) + 60
     # tiered_blocks: base_price + ((qty - 1) * block_increment)
     pricing_strategy = db.Column(db.String(50), default='standard') 
-    block_increment = db.Column(db.Numeric(10, 2), nullable=True) # Used for tiered_blocks
-    # Discounts & Limits
-    min_qty_discount = db.Column(db.Integer, nullable=True) # Minimum pieces for discount
-    discount_percentage = db.Column(db.Numeric(5, 2), nullable=True) # Percentage (e.g., 10 for 10%)
-    min_price = db.Column(db.Numeric(10, 2), nullable=True) # Minimum price to charge for dynamic items
+    block_increment = db.Column(db.Numeric(10, 2), nullable=True) # Usado para tiered_blocks
+    # Descuentos y límites
+    min_qty_discount = db.Column(db.Integer, nullable=True) # Piezas mínimas para descuento
+    discount_percentage = db.Column(db.Numeric(5, 2), nullable=True) # Porcentaje (ejemplo: 10 para 10%)
+    min_price = db.Column(db.Numeric(10, 2), nullable=True) # Precio mínimo para artículos dinámicos
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Inventory Integration
+    # Integración con inventario
     material_id = db.Column(db.Integer, db.ForeignKey('materials.id'), nullable=True)
 
-    # Relationships
+    # Relaciones
     order_items = db.relationship('OrderItem', backref='product', lazy=True)
 
     def calculate_price(self, qty=1, width=None, height=None):

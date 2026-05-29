@@ -32,6 +32,7 @@
                     <th>Estado de Pago</th>
                     <th>Método</th>
                     {% endif %}
+                    <th>Fecha Entrega</th>
                     <th>Estado de Trabajo</th>
                     <th>Acciones</th>
                 </tr>
@@ -44,7 +45,7 @@
                         #{{ "%04d" | format(order.id) }}<br>
                         <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ order.title or 'Sin título' }}</span>
                     </td>
-                    <td class="customer-name">{{ order.customer.name }}</td>
+                    <td class="customer-name">{{ order.customer.name if order.customer else 'Cliente Eliminado (o Sin nombre)' }}</td>
                     {% if current_user.role != 'Producción' %}
                     <td>${{ "%.2f" | format(order.subtotal_amount or 0) }}</td>
                     <td>${{ "%.2f" | format(order.tax_amount or 0) }}</td>
@@ -57,6 +58,29 @@
                     </td>
                     <td>{{ order.payment_method or 'N/A' }}</td>
                     {% endif %}
+                    <td>
+                        {% if order.delivery_date %}
+                            {{ order.delivery_date.strftime('%d/%m/%Y') }}
+                            {% if order.status not in ['Listo', 'Entregado', 'Cancelado'] %}
+                                <br>
+                                {% if order.delivery_date < today %}
+                                    <span class="badge badge-danger" style="font-size: 0.75rem; padding: 2px 6px; background-color: #ef4444; color: #ffffff; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; font-weight: 600;">
+                                        <i class="fa-solid fa-clock-rotate-left"></i> Retrasado
+                                    </span>
+                                {% elif order.delivery_date == today %}
+                                    <span class="badge badge-warning" style="font-size: 0.75rem; padding: 2px 6px; background-color: #f59e0b; color: #ffffff; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; font-weight: 600;">
+                                        <i class="fa-solid fa-bell"></i> Hoy
+                                    </span>
+                                {% else %}
+                                    <span class="badge badge-success" style="font-size: 0.75rem; padding: 2px 6px; background-color: #10b981; color: #ffffff; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; font-weight: 600;">
+                                        <i class="fa-solid fa-circle-check"></i> En Tiempo
+                                    </span>
+                                {% endif %}
+                            {% endif %}
+                        {% else %}
+                            <span style="color: var(--text-secondary);">Sin especificar</span>
+                        {% endif %}
+                    </td>
                     <td><span class="status-badge status-{{ order.status|replace(' ', '') }}">{{ order.status }}</span></td>
                     <td class="action-buttons" style="display: flex; gap: 6px;">
                         {% if current_user.role == 'Producción' %}
@@ -83,7 +107,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="12" style="text-align: center; color: var(--text-secondary); padding: 40px;">
+                    <td colspan="13" style="text-align: center; color: var(--text-secondary); padding: 40px;">
                         No tienes ningún pedido registrado.
                     </td>
                 </tr>

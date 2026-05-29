@@ -19,7 +19,7 @@ class Material(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)
-    category = db.Column(db.String(100), nullable=True) # Rigidos, Flexibles, Tintas, etc.
+    category = db.Column(db.String(100), nullable=True) # Rígidos, Flexibles, Tintas, etc.
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
     
     stock_quantity = db.Column(db.Numeric(10, 2), default=0.0)
@@ -31,7 +31,7 @@ class Material(db.Model):
     
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
+    # Relaciones
     movements = db.relationship('InventoryMovement', backref='material', lazy=True)
     products = db.relationship('Product', backref='material', lazy=True)
 
