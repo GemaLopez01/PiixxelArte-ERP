@@ -32,8 +32,18 @@
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('orders_index') }}" class="{% if 'orders' in request.endpoint %}active{% endif %}">
+                <a href="{{ url_for('orders_index') }}" class="{% if request.endpoint == 'orders_index' %}active{% endif %}">
                     <i class="fa-solid fa-layer-group"></i> Pedidos
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('production_board') }}" class="{% if request.endpoint == 'production_board' %}active{% endif %}">
+                    <i class="fa-solid fa-screwdriver-wrench"></i> Taller (Producción)
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('calendar_view') }}" class="{% if request.endpoint == 'calendar_view' %}active{% endif %}">
+                    <i class="fa-solid fa-calendar-days"></i> Calendario
                 </a>
             </li>
             {% if current_user.role != 'Producción' %}
@@ -68,6 +78,7 @@
                 </a>
                 <ul class="submenu">
                     <li><a href="{{ url_for('finance_dashboard') }}" class="{% if request.endpoint == 'finance_dashboard' %}active{% endif %}">Resumen (Dashboard)</a></li>
+                    <li><a href="{{ url_for('finance_daily_report') }}" class="{% if request.endpoint == 'finance_daily_report' %}active{% endif %}">Corte Diario</a></li>
                     <li><a href="{{ url_for('finance_transactions') }}" class="{% if request.endpoint == 'finance_transactions' %}active{% endif %}">Transacciones (Caja)</a></li>
                 </ul>
             </li>
@@ -131,6 +142,11 @@
             </div> 
 
             <div class="user-profile">
+                <!-- Dark Mode Toggle -->
+                <button type="button" id="theme-toggle" class="btn btn-secondary" style="padding: 6px 10px; font-size: 1rem; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; margin-right: 10px; border: none; background: transparent; box-shadow: none;" title="Cambiar Tema">
+                    <i class="fa-solid fa-moon" id="theme-icon"></i>
+                </button>
+                
                 <span class="role-badge">{{ current_user.role }}</span>
                 <strong>{{ current_user.name }}</strong>
                 <a href="{{ url_for('logout') }}" class="logout-btn">
@@ -152,9 +168,33 @@
                 document.body.classList.toggle('sidebar-hidden');
             });
         });
-    </script>
-</body>
-</html>
+
+        // Toggle Dark Mode
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        
+        // Initialize Theme from LocalStorage
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
+        }
+
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                document.body.classList.toggle('dark-mode');
+                
+                if (document.body.classList.contains('dark-mode')) {
+                    localStorage.setItem('theme', 'dark');
+                    themeIcon.classList.remove('fa-moon');
+                    themeIcon.classList.add('fa-sun');
+                } else {
+                    localStorage.setItem('theme', 'light');
+                    themeIcon.classList.remove('fa-sun');
+                    themeIcon.classList.add('fa-moon');
+                }
+            });
+        }
     </script>
 </body>
 </html>

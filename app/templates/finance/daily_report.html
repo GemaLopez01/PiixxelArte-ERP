@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="dashboard-title">
+        <h1>Corte de Caja Diario</h1>
+        <p>Resumen financiero del día de hoy: <strong>{{ today.strftime('%d de %B, %Y') }}</strong></p>
+    </div>
+    <div class="header-actions">
+        <!-- Puedes añadir un input type="date" aquí en el futuro si deseas buscar por historia -->
+        <a href="{{ url_for('finance_dashboard') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Volver a Finanzas
+        </a>
+    </div>
+</div>
+
+<!-- Resumen Principal -->
+<div class="finance-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 32px;">
+    
+    <!-- Venta del Día -->
+    <div class="stat-card" style="background: linear-gradient(135deg, #FFE4E6 0%, #FECDD3 100%);">
+        <div class="stat-icon" style="background: rgba(225, 29, 72, 0.2); color: #E11D48;">
+            <i class="fa-solid fa-file-invoice-dollar"></i>
+        </div>
+        <div class="stat-info">
+            <h3>Pedidos Vendidos (Cotizados)</h3>
+            <div class="stat-value" style="color: #BE123C;">${{ "%.2f" | format(total_sales) }}</div>
+            <p style="font-size: 0.85rem; margin-top: 5px; color: #881337;">Suma total de nuevas notas generadas hoy. (No es dinero real en caja).</p>
+        </div>
+    </div>
+
+    <!-- Ingresos Reales -->
+    <div class="stat-card" style="background: linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%);">
+        <div class="stat-icon" style="background: rgba(21, 128, 61, 0.2); color: #15803D;">
+            <i class="fa-solid fa-hand-holding-dollar"></i>
+        </div>
+        <div class="stat-info">
+            <h3>Ingresos Reales (Caja)</h3>
+            <div class="stat-value" style="color: #166534;">${{ "%.2f" | format(total_income) }}</div>
+            <p style="font-size: 0.85rem; margin-top: 5px; color: #14532D;">Suma de todos los pagos y anticipos caídos hoy.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Desglose -->
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px;">
+    <!-- Desglose por Método de Pago -->
+    <div class="section-card">
+        <h2 style="font-size: 1.2rem; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 10px;">
+            <i class="fa-solid fa-wallet" style="margin-right: 8px;"></i> Desglose de Caja
+        </h2>
+        
+        {% if income_by_method %}
+            <ul style="list-style: none; padding: 0;">
+            {% for method, amount in income_by_method.items() %}
+                <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-light);">
+                    <span style="font-weight: 500; color: var(--text-primary);">
+                        {% if method == 'Efectivo' %}<i class="fa-solid fa-money-bill" style="color: #10B981; margin-right: 6px;"></i>
+                        {% elif method == 'Tarjeta' %}<i class="fa-solid fa-credit-card" style="color: #3B82F6; margin-right: 6px;"></i>
+                        {% else %}<i class="fa-solid fa-building-columns" style="color: #8B5CF6; margin-right: 6px;"></i>{% endif %}
+                        {{ method }}
+                    </span>
+                    <span style="font-weight: bold; color: var(--primary); font-size: 1.1rem;">
+                        ${{ "%.2f" | format(amount) }}
+                    </span>
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                <i class="fa-solid fa-box-open" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+                <p>No se han registrado ingresos hoy.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Lista de Pedidos del Día -->
+    <div class="section-card">
+        <h2 style="font-size: 1.2rem; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 10px;">
+            <i class="fa-solid fa-clipboard-list" style="margin-right: 8px;"></i> Pedidos Registrados Hoy
+        </h2>
+        
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th># Orden</th>
+                        <th>Cliente / Titular</th>
+                        <th>Total Nota</th>
+                        <th>Anticipo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in today_orders %}
+                    <tr>
+                        <td style="color: var(--text-secondary); font-size: 0.9rem;">{{ order.created_at.strftime('%H:%M') }}</td>
+                        <td>
+                            <a href="{{ url_for('edit_order', order_id=order.id) }}" style="font-weight: 600; color: var(--primary); text-decoration: none;">
+                                #{{ "%04d" | format(order.id) }}
+                            </a>
+                        </td>
+                        <td>{{ order.customer.name if order.customer else 'Sin cliente' }}</td>
+                        <td style="font-weight: bold;">${{ "%.2f" | format(order.total_amount or 0) }}</td>
+                        <td style="color: #15803d;">${{ "%.2f" | format(order.advance_payment or 0) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                            Ningún pedido nuevo creado el día de hoy.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

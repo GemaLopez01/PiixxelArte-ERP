@@ -10,7 +10,7 @@ class Customer(db.Model):
     phone = db.Column(db.String(20), nullable=True)
     address = db.Column(db.Text, nullable=True)
     
-    # Fiscal Details
+    # Detalles fiscales
     requires_invoice = db.Column(db.Boolean, default=False)
     rfc = db.Column(db.String(20), nullable=True)
     business_name = db.Column(db.String(150), nullable=True) # Razón social

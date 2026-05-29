@@ -566,8 +566,9 @@ def delete_customer(customer_id):
 @app.route("/orders")
 @login_required
 def orders_index():
+    from datetime import date
     orders = Order.query.order_by(Order.created_at.desc()).all()
-    return render_template("orders/index.html", orders=orders)
+    return render_template("orders/index.html", orders=orders, today=date.today())
 
 @app.route("/orders/new", methods=["GET", "POST"])
 @login_required
@@ -1113,6 +1114,45 @@ def finance_dashboard():
                            category_summary=category_summary,
                            recent_transactions=recent_txs)
 
+@app.route("/finance/daily")
+@login_required
+@roles_required('Administrador')
+def finance_daily_report():
+    from app.models.finance import Transaction
+    from app.models.order import Order
+    from datetime import date
+    from sqlalchemy import func
+
+    today = date.today()
+
+    # Sales (Órdenes creadas hoy)
+    # Using python filtering or SQLAlchemy func.date depending on dialect. For SQLite/Postgres compatibility:
+    # It's safer to use python filtering on the day if we don't know the exact db engine timezone trick, 
+    # but func.cast(Order.created_at, db.Date) == today usually works. 
+    # We will fetch recent orders to handle it safely or use SQLAlchemy.
+    orders = Order.query.order_by(Order.created_at.desc()).all()
+    today_orders = [o for o in orders if o.created_at.date() == today]
+    total_sales = sum((float(o.total_amount) for o in today_orders if o.total_amount), 0.0)
+
+    # Incomes grouped by payment_method (Transacciones de ingreso creadas hoy)
+    transactions = Transaction.query.filter_by(type='Ingreso').order_by(Transaction.date.desc()).all()
+    today_incomes = [t for t in transactions if t.date.date() == today]
+    
+    total_income = 0.0
+    income_by_method = {}
+    for tx in today_incomes:
+        method = tx.payment_method or 'No Especificado'
+        val = float(tx.amount)
+        income_by_method[method] = income_by_method.get(method, 0.0) + val
+        total_income += val
+
+    return render_template('finance/daily_report.html', 
+                           today=today, 
+                           today_orders=today_orders,
+                           total_sales=total_sales,
+                           total_income=total_income,
+                           income_by_method=income_by_method)
+
 @app.route("/finance/transactions")
 @login_required
 @roles_required('Administrador')
@@ -1146,6 +1186,76 @@ def finance_new_expense():
         return redirect(url_for("finance_dashboard"))
         
     return render_template("finance/expense_form.html")
+
+# ==============================================================================
+# CALENDAR & PRODUCTION DEDICATED MODULES
+# ==============================================================================
+
+@app.route("/calendar")
+@login_required
+def calendar_view():
+    from datetime import date
+    return render_template("calendar.html", today=date.today())
+
+@app.route("/api/orders/events")
+@login_required
+def api_order_events():
+    from app.models.order import Order
+    orders = Order.query.filter(Order.status != 'Cancelado').all()
+    events = []
+    for order in orders:
+        if not order.delivery_date:
+            continue
+            
+        # Determine event color based on status
+        color = '#2563eb' # Blue default (Pendiente)
+        if order.status == 'Producción':
+            color = '#f59e0b' # Yellow
+        elif order.status == 'Listo':
+            color = '#10b981' # Green
+        elif order.status == 'Entregado':
+            color = '#6b7280' # Gray
+            
+        events.append({
+            'id': order.id,
+            'title': f"#{order.id:04d} - {order.customer.name if order.customer else 'Cliente'} ({order.title or 'Sin título'})",
+            'start': order.delivery_date.strftime('%Y-%m-%d'),
+            'color': color,
+            'url': url_for('edit_order', order_id=order.id)
+        })
+    return {'events': events}
+
+@app.route("/production")
+@login_required
+@roles_required('Administrador', 'Ventas', 'Producción')
+def production_board():
+    from app.models.order import Order
+    from datetime import date
+    # Get active orders grouped by status
+    pending = Order.query.filter_by(status='Pendiente').order_by(Order.delivery_date.asc()).all()
+    producing = Order.query.filter_by(status='Producción').order_by(Order.delivery_date.asc()).all()
+    ready = Order.query.filter_by(status='Listo').order_by(Order.delivery_date.asc()).all()
+    
+    return render_template("production_board.html", 
+                           pending_orders=pending, 
+                           producing_orders=producing, 
+                           ready_orders=ready,
+                           today=date.today())
+
+@app.route("/orders/<int:order_id>/status_quick", methods=["POST"])
+@login_required
+@roles_required('Administrador', 'Ventas', 'Producción')
+def status_quick(order_id):
+    from app.models.order import Order
+    order = Order.query.get_or_404(order_id)
+    new_status = request.form.get("status")
+    if new_status in ['Pendiente', 'Producción', 'Listo', 'Entregado', 'Cancelado']:
+        order.status = new_status
+        db.session.commit()
+        flash(f"Estado del pedido #{order.id:04d} actualizado a {new_status}.", "success")
+    else:
+        flash("Estado inválido.", "danger")
+    return redirect(url_for('production_board'))
 
 if __name__ == "__main__":
     app.run(debug=True)
