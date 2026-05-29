@@ -10,7 +10,6 @@ load_dotenv()
 
 from app.extensions import db, login_manager, migrate
 from app.models.user import User
-import app.models  # Ensure all models are loaded
 from app.models.customer import Customer
 from app.models.product import Product
 from app.models.order import Order, OrderItem

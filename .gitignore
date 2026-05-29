@@ -1,4 +1,7 @@
 __pycache__/
-venv/
+*.pyc
 .env
+instance/
+*.sqlite
+*.db
 Ventas Piixxelarte.xlsm
